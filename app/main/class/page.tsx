@@ -1,3 +1,3 @@
-export default function ClassPage() {
-  return <h2>Quản lý lớp học</h2>;
+export default function MyClassPage() {
+  return <h2>Lớp học của tôi</h2>;
 }
