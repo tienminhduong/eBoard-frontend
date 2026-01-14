@@ -1,4 +1,4 @@
-import { Student } from "../types/Student";
+import { Student } from "../types/student";
 
 export const getStudents = async (): Promise<Student[]> => {
   return [
