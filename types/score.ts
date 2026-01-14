@@ -1,12 +1,54 @@
+// --- ENUM ---
+export type Grade =
+  | "Xuất sắc"
+  | "Giỏi"
+  | "Khá"
+  | "Trung bình"
+  | "Yếu";
+// --- THỐNG KÊ ---
 export interface ScoreStat {
-  label: string;
+  label: Grade;
   value: number;
   type: "excellent" | "good" | "average" | "weak";
 }
 
+// --- DANH SÁCH HỌC SINH TRONG LỚP ---
 export interface StudentScore {
-  id: number;
-  name: string;
+  studentId: string;
+  studentName: string;
   averageScore: number;
-  rank: "Giỏi" | "Khá" | "Trung bình" | "Yếu";
+  grade: Grade;
 }
+
+// --- ĐIỂM CHI TIẾT THEO MÔN ---
+export interface SubjectScore {
+  subjectId: string;
+  subjectName: string;
+  midTermScore: number | null;
+  finalTermScore: number | null;
+  averageScore: number | null;
+}
+
+
+// --- SCORE SHEET (tổng kết học kỳ của 1 học sinh) ---
+export interface ScoreDetailSummary {
+  averageScore?: number;  // Điểm trung bình chung
+  grade?: Grade;          // Xếp loại
+  rank?: number;         // Xếp hạng (optional – nếu BE có)
+}
+
+export interface Subject {
+  id: string;   // SUBJECT.Id (guid)
+  name: string; // SUBJECT.Name
+}
+export interface ScoreBySubject {
+  subjectId: string;           // SUBJECT.Id (guid)
+  midTermScore: number | null; // Điểm giữa kỳ
+  finalTermScore: number | null;// Điểm cuối kỳ
+}
+
+
+
+
+
+

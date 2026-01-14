@@ -1,4 +1,4 @@
-import { Student } from "@/types/Student";
+import { Student } from "@/types/student";
 
 const students: Student[] = [
   { id: 1, name: "Nguyễn Văn A", age: 8 },

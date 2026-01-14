@@ -1,5 +1,3 @@
-import ClassList from "@/components/class/classList";
-
 export default function ClassPage() {
   return (
     <div>
@@ -8,8 +6,6 @@ export default function ClassPage() {
         Quản lý và theo dõi các lớp học của bạn
       </p>
 
-      <h2 className="font-medium mb-4">Lớp hiện tại đang dạy</h2>
-      <ClassList />
     </div>
   );
 }
