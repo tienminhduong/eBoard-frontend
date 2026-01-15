@@ -5,8 +5,11 @@ import ScoreStats from "@/components/class/score/ScoreStats";
 import ScoreFilters from "@/components/class/score/ScoreFilters";
 import ScoreTable from "@/components/class/score/ScoreTable";
 import ScoreDetailTable from "@/components/class/score/ScoreDetailTable";
+import ScoreBySubjectTable from "@/components/class/score/ScoreBySubjectTable";
+
 import { scoreService } from "@/services/scoreService";
 import {
+  ScoreBySubject,
   ScoreDetailSummary,
   ScoreStat,
   StudentScore,
@@ -14,81 +17,87 @@ import {
 } from "@/types/score";
 import ScorePrintModal from "@/components/class/score/ScorePrintModal";
 import { exportScoreExcel } from "@/utils/exportScoreExcel";
+import ScoreBySubjectPrintModal from "@/components/class/score/ScoreBySubjectPrintModal";
+import { exportScoreBySubjectExcel } from "@/utils/exportScoreBySubjectExcel";
 
 export default function StudyResultPage() {
-  // TODO: lấy từ route params
-  const classId = "b7f3b2c2-4e1a-4e8f-9d9c-123456789abc"; // GUID
+  const classId = "b7f3b2c2-4e1a-4e8f-9d9c-123456789abc";
 
-  const [semester, setSemester] = useState<number>(1);
+  const [semester, setSemester] = useState(1);
   const [studentId, setStudentId] = useState<"all" | string>("all");
-  const [subjectId, setSubjects] = useState<"all" | string>("all");
+  const [subjectId, setSubjectId] = useState<"all" | string>("all");
+
   const [stats, setStats] = useState<ScoreStat[]>([]);
   const [students, setStudents] = useState<StudentScore[]>([]);
   const [subjectScores, setSubjectScores] = useState<SubjectScore[]>([]);
-
+  const [scoreBySubject, setScoreBySubject] = useState<ScoreBySubject[]>([]);
+  const [selectedSubjectName, setSelectedSubjectName] = useState("");
+  const [summary, setSummary] = useState<ScoreDetailSummary | null>(null);
   const [openPrint, setOpenPrint] = useState(false);
 
-
-  const [summary, setSummary] =
-  useState<ScoreDetailSummary | null>(null);
-
+  const isPrintAll = studentId === "all" && subjectId === "all";
+  const isPrintBySubject = studentId === "all" && subjectId !== "all";
 
   /* ===== LOAD STATS ===== */
   useEffect(() => {
-    scoreService
-      .getStats({
-        classId,
-        semester,
-      })
-      .then(setStats);
+    scoreService.getStats({ classId, semester }).then(setStats);
   }, [classId, semester]);
 
   /* ===== LOAD DATA ===== */
   useEffect(() => {
-    if (studentId === "all") {
+    // Tổng quan
+    if (studentId === "all" && subjectId === "all") {
       scoreService
-        .getStudentScores({
-          classId,
-          semester,
-        })
+        .getStudentScores({ classId, semester })
         .then(setStudents);
       return;
     }
-    
-    scoreService
-      .getSubjectScores({
-        classId,
-        semester,
-        studentId,
-      })
-      .then(setSubjectScores);
-  }, [classId, semester, studentId]);
 
+    // Theo môn
+    if (studentId === "all" && subjectId !== "all") {
+      scoreService
+        .getScoreBySubject({ classId, semester, subjectId })
+        .then(setScoreBySubject);
+      return;
+    }
+
+    // Theo học sinh
+    scoreService
+      .getSubjectScores({ classId, semester, studentId })
+      .then(setSubjectScores);
+  }, [classId, semester, studentId, subjectId]);
+
+  /* ===== SUMMARY ===== */
   useEffect(() => {
     if (studentId === "all") return;
 
     scoreService
-      .getScoreDetailSummary({
-        classId,
-        semester,
-        studentId,
-      })
+      .getScoreDetailSummary({ classId, semester, studentId })
       .then(setSummary);
   }, [classId, semester, studentId]);
 
-  const mockClassInfo = {
-  id: "b7f3b2c2-4e1a-4e8f-9d9c-123456789abc",
-  name: "10A1",
-  Year: "2024 - 2025",
+  const classInfo = {
+    id: classId,
+    name: "10A1",
+    Year: "2024 - 2025",
   };
-  const classInfo = mockClassInfo;
+
   const handleExportExcel = () => {
+  if (subjectId === "all") {
     exportScoreExcel(students, {
       className: classInfo.name,
       schoolYear: classInfo.Year,
       semester,
     });
-  };
+  } else {
+    exportScoreBySubjectExcel(scoreBySubject, {
+      className: classInfo.name,
+      schoolYear: classInfo.Year,
+      semester,
+      subjectName: selectedSubjectName,
+    });
+  }
+};
 
   return (
     <div className="space-y-6">
@@ -100,23 +109,53 @@ export default function StudyResultPage() {
         studentId={studentId}
         subjectId={subjectId}
         onSemesterChange={setSemester}
-        onStudentChange={setStudentId}
+        onStudentChange={(v) => {
+          setStudentId(v);
+          setSubjectId("all");
+        }}
+        onSubjectChange={(subjectId, subjectName) => {
+          setSubjectId(subjectId);
+          setSelectedSubjectName(subjectName);
+        }}
         onPrint={() => setOpenPrint(true)}
-         onExportExcel={handleExportExcel}
-        onSubjectChange={() => {}}  
+        onExportExcel={handleExportExcel}
       />
 
-      <ScorePrintModal
-        open={openPrint}
-        onClose={() => setOpenPrint(false)}
-        data={students}       // ✅ StudentScore[]
-        semester={semester}
-        className={classInfo.name}
-        schoolYear={classInfo.Year}        
-      />
+      {isPrintAll && (
+        <ScorePrintModal
+          open={openPrint}
+          onClose={() => setOpenPrint(false)}
+          data={students}
+          semester={semester}
+          className={classInfo.name}
+          schoolYear={classInfo.Year}
+        />
+      )}
 
+      {isPrintBySubject && (
+        <ScoreBySubjectPrintModal
+          open={openPrint}
+          onClose={() => setOpenPrint(false)}
+          data={scoreBySubject}
+          className={classInfo.name}
+          schoolYear={classInfo.Year}
+          semester={semester}
+          subjectName={selectedSubjectName}
+        />
+      )}
+
+
+      {/* ===== TABLE ===== */}
       {studentId === "all" ? (
-        <ScoreTable data={students} classId={classId} semester={semester} />
+        subjectId === "all" ? (
+          <ScoreTable
+            data={students}
+            classId={classId}
+            semester={semester}
+          />
+        ) : (
+          <ScoreBySubjectTable data={scoreBySubject} />
+        )
       ) : (
         <ScoreDetailTable
           data={subjectScores}

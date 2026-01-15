@@ -95,26 +95,36 @@ const mockSubjectScores: SubjectScore[] = [
   },
 ];
 
-export const MOCK_SCORE_BY_SUBJECT: ScoreBySubject[] = [
+const MOCK_SCORE_BY_SUBJECT: ScoreBySubject[] = [
   {
-    subjectId: "math",
-    midTermScore: 7.5,
-    finalTermScore: 8.0,
+    studentId: "stu-1",
+    studentName: "Nguyễn Văn An",
+    subjectId: "sub-1",
+    midtermScore: 8.0,
+    finalScore: 8.0,
+    averageScore: 8.0,
+    grade: "Giỏi",
+    note: "",
   },
   {
-    subjectId: "literature",
-    midTermScore: 6.5,
-    finalTermScore: 7.0,
+    studentId: "stu-2",
+    studentName: "Trần Thị Bình",
+    subjectId: "sub-1",
+    midtermScore: 8.0,
+    finalScore: 8.0,
+    averageScore: 8.0,
+    grade: "Giỏi",
+    note: "",
   },
   {
-    subjectId: "english",
-    midTermScore: 8.0,
-    finalTermScore: 8.5,
-  },
-  {
-    subjectId: "physics",
-    midTermScore: null,
-    finalTermScore: null,
+    studentId: "stu-3",
+    studentName: "Lê Minh Châu",
+    subjectId: "sub-1",
+    midtermScore: 9.0,
+    finalScore: 8.0,
+    averageScore: 9.0,
+    grade: "Giỏi",
+    note: "Học tốt",
   },
 ];
 
@@ -167,6 +177,36 @@ export const scoreService = {
     return mockSubjectScores;
   },
 
+getScoreBySubject: async (
+  params: GetScoreBySubjectParams
+): Promise<ScoreBySubject[]> => {
+  await fakeDelay(400);
+  console.log("Fetch score by subject:", params);
+
+  return MOCK_SCORE_BY_SUBJECT.filter(
+    (s) => s.subjectId === params.subjectId
+  );
+},
+
+/* ====== Lưu điểm theo môn ====== */
+saveScoresBySubject: async (payload: {
+  classId: string;
+  semester: number;
+  subjectId: string;
+  scores: {
+    studentId: string;
+    midtermScore: number | null;
+    finalScore: number | null;
+    note?: string;
+  }[];
+}) => {
+  await fakeDelay(500);
+
+  console.log("SAVE SCORE BY SUBJECT:", payload);
+
+  // MOCK success
+  return { success: true };
+},
 
 
   /* ====== Lưu điểm ====== */
@@ -205,26 +245,7 @@ export const scoreService = {
       setTimeout(() => resolve(mockSubjects), 300);
     });
   },
-
-  getScoreBySubject: async ({
-    classId,
-    semester,
-    subjectId,
-  }: GetScoreBySubjectParams): Promise<ScoreBySubject[]> => {
-    console.log("MOCK getScoreBySubject", {
-      classId,
-      semester,
-      subjectId,
-    });
-
-    // giả lập delay như gọi API
-    await new Promise((r) => setTimeout(r, 300));
-
-    // mock: trả về toàn bộ học sinh trong lớp với điểm môn được chọn
-    return MOCK_SCORE_BY_SUBJECT.filter(
-      (s) => s.subjectId === subjectId
-    );
-  },
+  
 };
 
 

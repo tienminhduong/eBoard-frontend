@@ -9,6 +9,7 @@ import AddScoreModal from "./AddScoreModal";
 
 import { scoreService } from "@/services/scoreService";
 import { Subject } from "@/types/score";
+import AddScoreBySubjectModal from "./AddScoreBySubjectModal";
 
 /* ================= TYPES ================= */
 
@@ -20,7 +21,7 @@ interface Props {
 
   onSemesterChange: (v: number) => void;
   onStudentChange: (v: "all" | string) => void;
-  onSubjectChange: (v: "all" | string) => void;
+  onSubjectChange: (id: "all" | string, name: string) => void;
 
   onPrint: () => void;
   onExportExcel: () => void;
@@ -41,6 +42,8 @@ export default function ScoreFilters({
 }: Props) {
   /* ===== MODAL ===== */
   const [openAddScore, setOpenAddScore] = useState(false);
+  const [openAddScoreBySubject, setOpenAddScoreBySubject] =
+  useState(false);
 
   /* ===== DATA ===== */
   const [semesters, setSemesters] = useState<
@@ -48,10 +51,7 @@ export default function ScoreFilters({
   >([]);
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
-
-  const [students, setStudents] = useState<
-    { id: string; name: string }[]
-  >([]);
+  const [students, setStudents] = useState<{ id: string; name: string }[]>([]);
 
   /* ================= LOAD DATA ================= */
 
@@ -67,7 +67,10 @@ export default function ScoreFilters({
   }, []);
 
   useEffect(() => {
-    scoreService.getSubjects().then(setSubjects);
+    scoreService.getSubjects().then((data) => {
+      // đảm bảo KHÔNG có "all" từ backend
+      setSubjects(data.filter((s) => s.id !== "all"));
+    });
   }, []);
 
   useEffect(() => {
@@ -116,7 +119,14 @@ export default function ScoreFilters({
         <div className="w-[200px]">
           <Select
             value={subjectId}
-            onChange={onSubjectChange}
+            onChange={(value) => {
+              const subject = subjects.find(s => s.id === value);
+
+              onSubjectChange(
+                value,
+                subject ? subject.name : "Tổng quan"
+              );
+            }}
             options={[
               { value: "all", label: "Tổng quan" },
               ...subjects.map((s) => ({
@@ -125,51 +135,60 @@ export default function ScoreFilters({
               })),
             ]}
           />
+
         </div>
       </div>
 
       {/* RIGHT */}
       <div className="flex gap-2">
+        {/* OVERVIEW */}
         {isOverview && (
-          <Button
-            icon={Plus}
-            variant="primary"
-            className="rounded-xl"
-            onClick={() => setOpenAddScore(true)}
-          >
-            Nhập điểm
-          </Button>
+          <>
+            <Button
+              icon={Plus}
+              variant="primary"
+              className="rounded-xl"
+              onClick={() => setOpenAddScore(true)}
+            >
+              Nhập điểm
+            </Button>
+
+            <Button icon={Printer} variant="outline" onClick={onPrint}>
+                In bảng điểm
+            </Button>
+
+            <Button icon={FileDown} variant="outline" onClick={onExportExcel}>
+              Xuất Excel
+            </Button>
+          </>
         )}
 
+        {/* BY SUBJECT */}
         {!isOverview && (
           <>
-            <Button icon={Plus} variant="primary">
+            <Button
+              icon={Plus}
+              variant="primary"
+              onClick={() => setOpenAddScoreBySubject(true)}
+            >
               Nhập điểm theo môn
             </Button>
 
             <Button icon={Upload} variant="outline">
               Đăng tải Excel
             </Button>
+
+            <Button icon={Printer} variant="outline" onClick={onPrint}>
+              In bảng điểm theo môn
+            </Button>
+
+            <Button icon={FileDown} variant="outline" onClick={onExportExcel}>
+              Xuất Excel theo môn
+            </Button>
           </>
         )}
 
-        <Button
-          icon={Printer}
-          variant="outline"
-          className="rounded-xl"
-          onClick={onPrint}
-        >
-          In bảng điểm
-        </Button>
 
-        <Button
-          icon={FileDown}
-          variant="outline"
-          className="rounded-xl"
-          onClick={onExportExcel}
-        >
-          Xuất Excel
-        </Button>
       </div>
 
       {/* MODAL */}
@@ -178,6 +197,14 @@ export default function ScoreFilters({
         onClose={() => setOpenAddScore(false)}
         classId={classId}
         semester={semester}
+      />
+
+      <AddScoreBySubjectModal
+        open={openAddScoreBySubject}
+        onClose={() => setOpenAddScoreBySubject(false)}
+        classId={classId}
+        semester={semester}
+        subjectId={subjectId as string} // vì != "all"
       />
     </div>
   );

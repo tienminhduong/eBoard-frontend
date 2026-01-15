@@ -41,13 +41,19 @@ export interface Subject {
   id: string;   // SUBJECT.Id (guid)
   name: string; // SUBJECT.Name
 }
+
 export interface ScoreBySubject {
-  subjectId: string;           // SUBJECT.Id (guid)
-  midTermScore: number | null; // Điểm giữa kỳ
-  finalTermScore: number | null;// Điểm cuối kỳ
+  studentId: string;
+  studentName: string;
+  subjectId: string;
+
+  midtermScore: number | null;
+  finalScore: number | null;
+
+  averageScore: number | null; // ← BE tính
+  grade: Grade | null;         // ← BE tính
+  note?: string;
 }
-
-
 
 
 
