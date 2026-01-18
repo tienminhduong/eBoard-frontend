@@ -13,22 +13,60 @@ body {
 }
 
 @media print {
+  /* ===== PAGE SETUP ===== */
+  @page {
+    size: A4;
+    margin: 20mm;
+  }
+
+  html,
+  body {
+    background: white;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* ===== ẨN TOÀN BỘ UI ===== */
   body * {
     visibility: hidden;
   }
 
+  /* ===== CHỈ HIỆN NỘI DUNG IN ===== */
   .print-area,
   .print-area * {
     visibility: visible;
   }
 
+  /* ===== KHÔNG ABSOLUTE → TRÁNH LẶP ===== */
   .print-area {
-    position: absolute;
-    inset: 0;
+    position: static;
+    width: 100%;
   }
 
+  /* ===== ẨN NÚT ===== */
   button {
-    display: none;
+    display: none !important;
+  }
+
+  /* ===== TABLE PRINT FIX ===== */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    page-break-inside: auto;
+  }
+
+  thead {
+    display: table-header-group; /* lặp header mỗi trang */
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  th,
+  td {
+    padding: 6px 8px;
   }
 }
 

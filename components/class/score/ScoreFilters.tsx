@@ -26,6 +26,7 @@ interface Props {
 
   onPrint: () => void;
   onExportExcel: () => void;
+  onImportExcel: () => void;
 }
 
 /* ================= COMPONENT ================= */
@@ -41,6 +42,7 @@ export default function ScoreFilters({
   onSubjectChange,
   onPrint,
   onExportExcel,
+  onImportExcel,
 }: Props) {
   /* ===== MODAL ===== */
   const [openAddScore, setOpenAddScore] = useState(false);
@@ -174,9 +176,14 @@ export default function ScoreFilters({
               Nhập điểm theo môn
             </Button>
 
-            <Button icon={Upload} variant="outline">
+            <Button
+              icon={Upload}
+              variant="outline"
+              onClick={onImportExcel}
+            >
               Đăng tải Excel
             </Button>
+
 
             <Button icon={Printer} variant="outline" onClick={onPrint}>
               In bảng điểm theo môn

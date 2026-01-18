@@ -21,6 +21,7 @@ import ScoreBySubjectPrintModal from "@/components/class/score/ScoreBySubjectPri
 import { exportScoreBySubjectExcel } from "@/utils/exportScoreBySubjectExcel";
 import BatchStudentPrintModal from "@/components/class/score/BatchStudentPrintModal";
 import SingleScorePrintModal from "@/components/class/score/BatchStudentPrintModal";
+import ImportScoreExcelModal from "@/components/class/score/ImportScoreExcelModal";
 
 export default function StudyResultPage() {
   const classId = "27f5cded-0c8a-4aa0-a099-718ac7434a3b"; // 1A
@@ -31,20 +32,33 @@ export default function StudyResultPage() {
 
   const [stats, setStats] = useState<ScoreStat[]>([]);
   const [students, setStudents] = useState<StudentScore[]>([]);
+  const [studentList, setStudentList] = useState<{ studentId: string; studentName: string }[]>([]);
   const [subjectScores, setSubjectScores] = useState<SubjectScore[]>([]);
   const [scoreBySubject, setScoreBySubject] = useState<ScoreBySubject[]>([]);
   const [selectedSubjectName, setSelectedSubjectName] = useState("");
   const [summary, setSummary] = useState<ScoreDetailSummary | null>(null);
   const [openPrint, setOpenPrint] = useState(false);
+  const [openImportExcel, setOpenImportExcel] = useState(false);
 
   const isPrintAllClass = studentId === "all" && subjectId === "all";
   const isPrintBySubject = studentId === "all" && subjectId !== "all";
   const isPrintSingleStudent = studentId !== "all";
 
   /* ===== LOAD STATS ===== */
-  useEffect(() => {
-      scoreService.getStats({ classId, semester }).then(setStats);
-    }, [classId, semester]);
+    useEffect(() => {
+        scoreService.getStats({ classId, semester }).then(setStats);
+      }, [classId, semester]);
+  
+    useEffect(() => {
+      scoreService.getStudents(classId).then((data) => {
+        setStudentList(
+          data.map((s) => ({
+            studentId: s.id,
+            studentName: s.name,
+          }))
+        );
+      });
+    }, [classId]);
 
     /* ===== LOAD DATA ===== */
     useEffect(() => {
@@ -109,6 +123,9 @@ export default function StudyResultPage() {
     Year: "2024 - 2025",
   };
 
+const className = classInfo.name;
+const subjectName = selectedSubjectName;
+
   const handleExportExcel = () => {
   if (subjectId === "all") {
     exportScoreExcel(students, {
@@ -147,10 +164,33 @@ export default function StudyResultPage() {
         subjectName={selectedSubjectName}
         onPrint={() => setOpenPrint(true)}
         onExportExcel={handleExportExcel}
+        onImportExcel={() => setOpenImportExcel(true)}
       />
 
-      {/* ===== PRINT MODALS ===== */}
+      {/* ===== IMPORT MODAL ===== */}
+      {isPrintBySubject && (
+        <ImportScoreExcelModal
+          open={openImportExcel}
+          onClose={() => setOpenImportExcel(false)}
+          classId={classId}
+          className={className}
+          subjectId={subjectId as string}
+          subjectName={subjectName}
+          semester={semester}
+          students={studentList}
+          onSuccess={() => {
+            scoreService
+              .getScoresBySubject({
+                classId,
+                subjectId: subjectId as string,
+                semester,
+              })
+              .then(setScoreBySubject);
+          }}
+        />
+      )}
 
+      {/* ===== PRINT MODALS ===== */}
       {isPrintAllClass && (
         <ScorePrintModal
           open={openPrint}
