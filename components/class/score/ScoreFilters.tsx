@@ -18,6 +18,7 @@ interface Props {
   semester: number;
   studentId: "all" | string;
   subjectId: "all" | string;
+  subjectName: string;
 
   onSemesterChange: (v: number) => void;
   onStudentChange: (v: "all" | string) => void;
@@ -34,6 +35,7 @@ export default function ScoreFilters({
   semester,
   studentId,
   subjectId,
+  subjectName,
   onSemesterChange,
   onStudentChange,
   onSubjectChange,
@@ -114,27 +116,27 @@ export default function ScoreFilters({
         </div>
 
         {/* Subject */}
-        <div className="w-[200px]">
-          <Select
-            value={subjectId}
-            onChange={(value) => {
-              const subject = subjects.find(s => s.id === value);
+        {studentId === "all" && (
+          <div className="w-[200px]">
+            <Select
+              value={subjectId}
+              onChange={(value) => {
+                const subject = subjects.find(s => s.id === value);
 
-              onSubjectChange(
-                value,
-                subject ? subject.name : "Tổng quan"
-              );
-            }}
-            options={[
-              { value: "all", label: "Tổng quan" },
-              ...subjects.map((s) => ({
-                value: s.id,
-                label: s.name,
-              })),
-            ]}
-          />
-
-        </div>
+                onSubjectChange(
+                  value,
+                  subject ? subject.name : "Tổng quan"
+                );
+              }}
+              options={[
+                { value: "all", label: "Tổng quan" },
+                ...subjects.map((s) => ({
+                  value: s.id,
+                  label: s.name,
+                })),
+              ]}
+            />
+          </div>)}
       </div>
 
       {/* RIGHT */}
@@ -203,6 +205,7 @@ export default function ScoreFilters({
         classId={classId}
         semester={semester}
         subjectId={subjectId as string} // vì != "all"
+        subjectName={subjectName}
       />
     </div>
   );

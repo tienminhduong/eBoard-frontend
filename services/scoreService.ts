@@ -5,6 +5,7 @@ import {
   SubjectScore,
   ScoreDetailSummary,
   Subject,
+  ScoreBySubject,
 } from "@/types/score";
 
 /* ================= SERVICE ================= */
@@ -106,6 +107,46 @@ export const scoreService = {
       }
       throw err; // lỗi khác thì vẫn throw
     }
+  },
+
+  /* ====== Bảng điểm theo môn học ====== */
+    async getScoresBySubject(params: {
+      classId: string;
+      subjectId: string;
+      semester: number;
+    }): Promise<ScoreBySubject[]> {
+      const res = await api.get(
+        `/score/${params.classId}/subject/${params.subjectId}/scores/${params.semester}`
+      );
+
+      return res.data.map((s: any) => ({
+        studentId: s.studentId,
+        studentName: s.studentName,
+
+        midtermScore: s.midtermScore ?? null,
+        finalScore: s.finalScore ?? null,
+        averageScore: s.averageScore ?? null,
+
+        grade: s.grade ?? null,
+        note: s.note ?? null,
+      }));
+    },
+
+/* ====== Lưu điểm theo môn học ====== */
+async saveScoresBySubject(payload: {
+    classId: string;
+    subjectId: string;
+    semester: number;
+    scores: {
+      studentId: string;
+      midtermScore: number;
+      finalScore: number;
+    }[];
+  }) {
+    return api.put(
+      `/score/${payload.classId}/subject/${payload.subjectId}/scores/${payload.semester}`,
+      payload.scores
+    );
   },
 
   /* ====== Lưu / cập nhật bảng điểm học sinh ====== */

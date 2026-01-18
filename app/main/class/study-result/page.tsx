@@ -59,10 +59,23 @@ export default function StudyResultPage() {
     }
 
     // ===== Theo môn (CHƯA IMPLEMENT → KHÔNG GỌI API SAI) =====
+    // ===== Theo môn =====
     if (studentId === "all" && subjectId !== "all") {
-      // TODO: getScoreBySubject
+      scoreService
+        .getScoresBySubject({
+          classId,
+          subjectId,
+          semester,
+        })
+        .then(setScoreBySubject)
+        .catch(err => {
+          console.error("Get score by subject failed", err);
+          setScoreBySubject([]); // an toàn UI
+        });
+
       return;
     }
+
 
     // ===== Theo học sinh =====
     if (studentId !== "all") {
@@ -131,6 +144,7 @@ export default function StudyResultPage() {
           setSubjectId(subjectId);
           setSelectedSubjectName(subjectName);
         }}
+        subjectName={selectedSubjectName}
         onPrint={() => setOpenPrint(true)}
         onExportExcel={handleExportExcel}
       />
@@ -176,9 +190,6 @@ export default function StudyResultPage() {
           }}
         />
       )}
-
-
-
 
       {/* ===== TABLE ===== */}
       {studentId === "all" ? (

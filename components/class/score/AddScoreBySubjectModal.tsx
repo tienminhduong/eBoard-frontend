@@ -12,6 +12,7 @@ interface Props {
   classId: string;
   semester: number;
   subjectId: string;
+  subjectName: string;
 }
 
 export default function ScoreInputBySubjectModal({
@@ -20,30 +21,54 @@ export default function ScoreInputBySubjectModal({
   classId,
   semester,
   subjectId,
+  subjectName,
 }: Props) {
   const [scores, setScores] = useState<ScoreBySubject[]>([]);
   const [loading, setLoading] = useState(false);
-  const [subjectName, setSubjectName] = useState("");
 
   /* ===== LOAD DATA ===== */
-    useEffect(() => {
-        if (!open) return;
+  useEffect(() => {
+  if (!open || !classId || !subjectId) return;
 
-        setLoading(true);
-        scoreService
-        .getScoreBySubject({ classId, semester, subjectId })
-        .then(setScores)
-        .finally(() => setLoading(false));
-    }, [open, classId, semester, subjectId]);
+  const loadData = async () => {
+    setLoading(true);
 
-    useEffect(() => {
-        if (!subjectId) return;
+    try {
+      const [students, subjectScores] = await Promise.all([
+        scoreService.getStudents(classId),
+        scoreService.getScoresBySubject({ classId, semester, subjectId }),
+      ]);
 
-        scoreService.getSubjects().then((list) => {
-            const found = list.find((s) => s.id === subjectId);
-            if (found) setSubjectName(found.name);
-        });
-    }, [subjectId]);
+      const scoreMap = new Map(
+        subjectScores.map((s) => [s.studentId, s])
+      );
+
+      const merged: ScoreBySubject[] = students.map((st) => {
+        const existed = scoreMap.get(st.id);
+
+        return (
+          existed ?? {
+            studentId: st.id,
+            studentName: st.name,
+            midtermScore: null,
+            finalScore: null,
+            averageScore: null,
+            grade: null,
+            note: undefined, // ✅ FIX Ở ĐÂY
+          }
+        );
+      });
+
+
+      setScores(merged);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadData();
+}, [open, classId, semester, subjectId]);
+
   /* ===== UPDATE SCORE ===== */
   const updateScore = (
     studentId: string,
@@ -67,14 +92,14 @@ export default function ScoreInputBySubjectModal({
       subjectId,
       scores: scores.map((s) => ({
         studentId: s.studentId,
-        midtermScore: s.midtermScore,
-        finalScore: s.finalScore,
-        note: s.note,
+        midtermScore: s.midtermScore ?? 0,
+        finalScore: s.finalScore ?? 0,
       })),
     });
 
     onClose();
   };
+
 
   return (
     <Modal
@@ -91,67 +116,69 @@ export default function ScoreInputBySubjectModal({
 
       {/* ===== TABLE ===== */}
       <div className="border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-[#518581] text-white">
-            <tr>
-              <th className="px-3 py-2 w-16">STT</th>
-              <th className="px-3 py-2 text-left">Họ tên</th>
-              <th className="px-3 py-2 w-28">GK</th>
-              <th className="px-3 py-2 w-28">CK</th>
-              <th className="px-3 py-2 w-28">ĐTB</th>
-              <th className="px-3 py-2 w-32">Xếp loại</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {loading && (
+        <div className="max-h-[60vh] overflow-y-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-[#518581] text-white sticky top-0 z-10">
               <tr>
-                <td colSpan={6} className="py-6 text-center text-gray-500">
-                  Đang tải dữ liệu...
-                </td>
+                <th className="px-3 py-2 w-16">STT</th>
+                <th className="px-3 py-2 text-left">Họ tên</th>
+                <th className="px-3 py-2 w-28">GK</th>
+                <th className="px-3 py-2 w-28">CK</th>
+                <th className="px-3 py-2 w-28">ĐTB</th>
+                <th className="px-3 py-2 w-32">Xếp loại</th>
               </tr>
-            )}
+            </thead>
 
-            {!loading &&
-              scores.map((s, idx) => (
-                <tr key={s.studentId} className="border-t">
-                  <td className="px-3 py-2 text-center">
-                    {idx + 1}
-                  </td>
-
-                  <td className="px-3 py-2 font-medium">
-                    {s.studentName}
-                  </td>
-
-                  <td className="px-3 py-2 text-center">
-                    <ScoreSelect
-                      value={s.midtermScore}
-                      onChange={(v) =>
-                        updateScore(s.studentId, "midtermScore", v)
-                      }
-                    />
-                  </td>
-
-                  <td className="px-3 py-2 text-center">
-                    <ScoreSelect
-                      value={s.finalScore}
-                      onChange={(v) =>
-                        updateScore(s.studentId, "finalScore", v)
-                      }
-                    />
-                  </td>
-
-                  <td className="px-3 py-2 text-center font-semibold">
-                    {s.averageScore ?? "-"}
-                  </td>
-
-                  <td className="px-3 py-2 text-center">
-                    {s.grade || "-"}
+            <tbody>
+              {loading && (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-gray-500">
+                    Đang tải dữ liệu...
                   </td>
                 </tr>
-              ))}
-          </tbody>
-        </table>
+              )}
+
+              {!loading &&
+                scores.map((s, idx) => (
+                  <tr key={s.studentId} className="border-t">
+                    <td className="px-3 py-2 text-center">
+                      {idx + 1}
+                    </td>
+
+                    <td className="px-3 py-2 font-medium">
+                      {s.studentName}
+                    </td>
+
+                    <td className="px-3 py-2 text-center">
+                      <ScoreSelect
+                        value={s.midtermScore}
+                        onChange={(v) =>
+                          updateScore(s.studentId, "midtermScore", v)
+                        }
+                      />
+                    </td>
+
+                    <td className="px-3 py-2 text-center">
+                      <ScoreSelect
+                        value={s.finalScore}
+                        onChange={(v) =>
+                          updateScore(s.studentId, "finalScore", v)
+                        }
+                      />
+                    </td>
+
+                    <td className="px-3 py-2 text-center font-semibold">
+                      {s.averageScore ?? "-"}
+                    </td>
+
+                    <td className="px-3 py-2 text-center">
+                      {s.grade || "-"}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* ===== FOOTER ===== */}
