@@ -8,6 +8,7 @@ interface AppButtonProps {
   icon?: LucideIcon;
   variant?: Variant;
   onClick?: () => void;
+  disabled?: boolean;
   className?: string;
 }
 
@@ -16,6 +17,7 @@ export default function Button({
   icon: Icon,
   variant = "ghost",
   onClick,
+  disabled = false,
   className,
 }: AppButtonProps) {
   return (

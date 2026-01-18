@@ -6,12 +6,14 @@ import { FormField } from "../ui/FormField";
 import Input from "../ui/inputType/Input";
 import Textarea from "../ui/inputType/TextArea";
 import Select from "../ui/inputType/Select";
-import { useEffect, useState } from "react";
+import { ExamSchedule, ExamType, Subject } from "@/types/exam";
+import { useState, useEffect } from "react";
+import { examService } from "@/services/examService";
 
 interface Props {
   open: boolean;
+  exam: ExamSchedule;
   onClose: () => void;
-  defaultDate?: string;
 }
 
 const SUBJECT_OPTIONS = [
@@ -26,39 +28,57 @@ const EXAM_TYPE_OPTIONS = [
   { value: "Cuối kỳ", label: "Cuối kỳ" },
 ];
 
-export default function AddExamModal({ open, onClose, defaultDate }: Props) {
-  const [subject, setSubject] = useState<string>("");
-  const [examType, setExamType] = useState<string>("");
+export default function ExamDetailModal({ open, exam, onClose }: Props) {
+  const [subject, setSubject] = useState<Subject | undefined>(exam.subject);
+  const [examType, setExamType] = useState<ExamType | undefined>(exam.type);
   const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (defaultDate) {
-      setDate(defaultDate);
-    } else {
-      setDate(""); 
+    if (exam) {
+      setSubject(exam.subject);
+      setExamType(exam.type);
+      setDate(exam.date);
+      setTime(exam.time);
+      setNote(exam.content || "");
     }
-  }, [defaultDate]);
-  
+  }, [exam]);
+
+  if (!exam) return null;
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      await examService.updateExam(exam.id, {
+        subject,
+        type: examType,
+        date,
+        time,
+        content: note,
+      });
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title="Thêm lịch thi mới"
-      description="Điền thông tin chi tiết về bài thi"
+      title="Chi tiết lịch thi"
+      description="Xem và cập nhật thông tin bài thi"
     >
       <div className="space-y-4">
         {/* Môn học */}
         <FormField label="Môn học" required>
           <Select
             options={SUBJECT_OPTIONS}
-            placeholder="Chọn môn học"
-            value={subject}          
-            onChange={setSubject}    
+            value={subject}
+            onChange={(value) => setSubject(value as Subject)}
             allowCreate
-            onCreate={(label) => {
-              console.log("Tạo môn mới:", label);
-              // sau này bạn gọi API + push vào options
-            }}
           />
         </FormField>
 
@@ -66,9 +86,8 @@ export default function AddExamModal({ open, onClose, defaultDate }: Props) {
         <FormField label="Hình thức thi" required>
           <Select
             options={EXAM_TYPE_OPTIONS}
-            placeholder="Chọn hình thức thi"
             value={examType}
-            onChange={setExamType}   
+            onChange={(value) => setExamType(value as ExamType)}
           />
         </FormField>
 
@@ -79,13 +98,17 @@ export default function AddExamModal({ open, onClose, defaultDate }: Props) {
           </FormField>
 
           <FormField label="Giờ thi" required>
-            <Input type="time" />
+            <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
           </FormField>
         </div>
 
         {/* Ghi chú */}
-         <FormField label="Ghi chú">
-          <Textarea rows={3} placeholder="Nhập ghi chú..." />
+        <FormField label="Ghi chú">
+          <Textarea
+            rows={3}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
         </FormField>
 
         {/* Actions */}
@@ -93,8 +116,13 @@ export default function AddExamModal({ open, onClose, defaultDate }: Props) {
           <Button variant="ghost" onClick={onClose}>
             Hủy
           </Button>
-          <Button variant="primary">
-            Thêm lịch thi
+
+          <Button
+            variant="primary"
+            onClick={handleSave}
+            disabled={loading}
+          >
+            Lưu thay đổi
           </Button>
         </div>
       </div>
