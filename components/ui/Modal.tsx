@@ -33,13 +33,13 @@ export default function Modal({
       />
 
       {/* Modal box */}
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div className="absolute inset-0 flex items-center justify-center p-4">
         <div
-          className={`relative bg-white rounded-2xl shadow-lg w-full ${width} p-6`}
+          className={`relative bg-white rounded-2xl shadow-lg w-full ${width} max-h-[80vh] flex flex-col`}
         >
           {/* Header */}
           {(title || description) && (
-            <div className="mb-4">
+            <div className="px-6 pt-4 pb-2">
               <div className="flex justify-between items-start">
                 <div>
                   {title && (
@@ -59,7 +59,10 @@ export default function Modal({
             </div>
           )}
 
-          {children}
+          {/* ===== BODY (SCROLL) ===== */}
+          <div className="overflow-y-auto px-6 py-4 flex-1">
+            {children}
+          </div>
         </div>
       </div>
     </div>,

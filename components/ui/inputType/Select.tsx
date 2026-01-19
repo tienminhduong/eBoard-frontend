@@ -4,27 +4,25 @@ import { useState } from "react";
 import Input from "@/components/ui/inputType/Input";
 import Button from "@/components/ui/Button";
 
-export interface Option {
-  value: string;
+export interface Option<T extends string | number | boolean  = string> {
+  value: T;
   label: string;
 }
 
-interface SelectProps {
+interface SelectProps<T extends string | number | boolean = string> {
   label?: string;
   required?: boolean;
-  options: Option[];
-  value?: string;
-  onChange?: (value: string) => void;
+  options: Option<T>[];
+  value?: T;
+  onChange?: (value: T) => void;
 
-  /** placeholder */
   placeholder?: string;
 
-  /** optional thêm mới */
   allowCreate?: boolean;
   onCreate?: (label: string) => void;
 }
 
-export default function Select({
+export default function Select<T extends string | number | boolean = string>({
   label,
   required,
   options,
@@ -33,9 +31,14 @@ export default function Select({
   placeholder = "Chọn",
   allowCreate = false,
   onCreate,
-}: SelectProps) {
+}: SelectProps<T>) {
   const [creating, setCreating] = useState(false);
   const [newValue, setNewValue] = useState("");
+
+  const hasValue = value !== undefined && value !== null && String(value).trim() !== "";
+  const hasValueInOptions = options.some(
+    (opt) => String(opt.value) === String(value)
+  );
 
   return (
     <div className="space-y-1">
@@ -48,44 +51,61 @@ export default function Select({
 
       {!creating ? (
         <select
-          value={value ?? ""}
+          value={value !== undefined ? String(value) : ""}
           onChange={(e) => {
             if (e.target.value === "__create__") {
               setCreating(true);
               return;
             }
-            onChange?.(e.target.value);
+            const selected = options.find(
+              (opt) => String(opt.value) === e.target.value
+            );
+
+            if (selected) {
+              onChange?.(selected.value);
+            }
           }}
           className="w-full rounded-xl border px-3 py-2 text-sm bg-white
                      focus:outline-none focus:ring-2 focus:ring-[#518581]/40"
         >
-           {/* placeholder */}
-            <option value="" disabled hidden>
+          {/* placeholder */}
+          <option value="" disabled hidden>
             {`-- ${placeholder} --`}
-            </option>
+          </option>
 
-        {allowCreate && (
+          {allowCreate && (
             <option value="__create__" className="font-semibold">+ Thêm mới</option>
           )}
 
+          {hasValue && !hasValueInOptions && (
+            <option value={String(value)}>
+              {String(value)}
+            </option>
+          )}
+
           {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
+            <option
+              key={String(opt.value)}
+              value={String(opt.value)}
+            >
               {opt.label}
             </option>
           ))}
+
         </select>
       ) : (
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center flex-nowrap">
           <Input
             autoFocus
             placeholder="Nhập giá trị mới"
             value={newValue}
             onChange={(e) => setNewValue(e.target.value)}
+            className="flex-1 min-w-0"  
           />
 
           <Button
             variant="primary"
-            className="px-3 py-2"
+            className="shrink-0 px-3 py-2"
             onClick={() => {
               if (!newValue.trim()) return;
               onCreate?.(newValue.trim());
@@ -93,12 +113,12 @@ export default function Select({
               setNewValue("");
             }}
           >
-            Lưu
+            Xác nhận
           </Button>
 
           <Button
             variant="ghost"
-            className="px-3 py-2"
+            className="shrink-0 px-3 py-2"
             onClick={() => {
               setCreating(false);
               setNewValue("");

@@ -7,7 +7,7 @@ const tabs = [
   { label: "Kết quả học tập", path: "/main/class/study-result" },
   { label: "Quỹ lớp", path: "/main/class/fund" },
   { label: "Lịch thi", path: "/main/class/exam" },
-  { label: "Thời khóa biểu", path: "/main/class/schedule" },
+  { label: "Thời khóa biểu", path: "/main/class/timetable" },
 ];
 
 export default function ClassNavigation() {

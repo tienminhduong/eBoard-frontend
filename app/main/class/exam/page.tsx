@@ -93,7 +93,7 @@ export default function ExamPage() {
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
           <Button icon={Calendar} variant="primary">
-            Lịch
+            Lịch tuần
           </Button>
 
           <Button 
