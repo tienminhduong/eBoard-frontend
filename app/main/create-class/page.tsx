@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
 
@@ -10,20 +10,13 @@ import Input from "@/components/ui/inputType/Input";
 import Textarea from "@/components/ui/inputType/TextArea";
 import Select from "@/components/ui/inputType/Select";
 
-import AddStudentModal, { StudentPayload } from "@/components/class/AddStudentModal";
+import { classService } from "@/services/classService";
 
 const PRIMARY = "#518581";
 const SELECTED_CLASS_ID_KEY = "selectedClassId";
-const CURRENT_TEACHER_ID_KEY = "teacherId"; // bạn đổi theo project bạn lưu teacherId lúc login
+const CURRENT_TEACHER_ID_KEY = "teacherId"; // giữ lại, nhưng hiện tại mock
 
-// ---- options demo (thay bằng data từ DB/API Grade sau này) ----
-const GRADE_OPTIONS = [
-  { value: "11111111-1111-1111-1111-111111111111", label: "Lớp 1" },
-  { value: "22222222-2222-2222-2222-222222222222", label: "Lớp 2" },
-  { value: "33333333-3333-3333-3333-333333333333", label: "Lớp 3" },
-  { value: "44444444-4444-4444-4444-444444444444", label: "Lớp 4" },
-  { value: "55555555-5555-5555-5555-555555555555", label: "Lớp 5" },
-];
+const MOCK_TEACHER_ID = "0ae25138-f3ca-43a4-aa36-d485f2e5f323";
 
 type CreateClassForm = {
   name: string;
@@ -31,22 +24,22 @@ type CreateClassForm = {
   roomName: string;
 
   startMonth: string; // 1..12
-  startYear: string;  // 4 digits
-  endMonth: string;   // 1..12
-  endYear: string;    // 4 digits
+  startYear: string; // 4 digits
+  endMonth: string; // 1..12
+  endYear: string; // 4 digits
 
   maxCapacity: string; // number string
-  classDescription: string;
+  classDescription: string; // UI dùng field này, POST map -> description
 };
 
 type CreatedClass = {
-  id: string; // guid
+  id: string;
   name: string;
   gradeId: string;
   teacherId: string;
   roomName: string;
   startDate: string; // yyyy-mm-dd
-  endDate: string;   // yyyy-mm-dd
+  endDate: string; // yyyy-mm-dd
   currentStudentCount: number;
   maxCapacity: number;
   classDescription: string;
@@ -92,18 +85,49 @@ export default function CreateClassPage() {
 
   const [created, setCreated] = useState(false);
   const [createdClass, setCreatedClass] = useState<CreatedClass | null>(null);
-  const [showAddStudent, setShowAddStudent] = useState(false);
+
+  // grades from API
+  const [gradeOptions, setGradeOptions] = useState<{ value: string; label: string }[]>([]);
+  const [gradeLoading, setGradeLoading] = useState(false);
+  const [gradeError, setGradeError] = useState("");
+
+  // create state
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        setGradeLoading(true);
+        setGradeError("");
+        const grades = await classService.getGrades(); // GET /api/grades
+        const opts = (grades || []).map((g: any) => ({ value: g.id, label: g.name }));
+        if (mounted) setGradeOptions(opts);
+      } catch (e: any) {
+        if (mounted) setGradeError(e?.message ?? "Không tải được danh sách khối.");
+      } finally {
+        if (mounted) setGradeLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const gradeLabel = useMemo(() => {
-    const found = GRADE_OPTIONS.find((g) => g.value === form.gradeId);
+    const found = gradeOptions.find((g) => g.value === form.gradeId);
     return found?.label ?? "";
-  }, [form.gradeId]);
+  }, [form.gradeId, gradeOptions]);
 
   function setField<K extends keyof CreateClassForm>(key: K, value: CreateClassForm[K]) {
     setForm((p) => ({ ...p, [key]: value }));
   }
 
   function resetForm() {
+    setCreateError("");
     setForm({
       name: "",
       gradeId: "",
@@ -124,15 +148,16 @@ export default function CreateClassPage() {
   }
 
   function getTeacherId() {
+    // hiện tại chưa login => mock cứng
     try {
-      return localStorage.getItem(CURRENT_TEACHER_ID_KEY) || "00000000-0000-0000-0000-000000000000";
+      return localStorage.getItem(CURRENT_TEACHER_ID_KEY) || MOCK_TEACHER_ID;
     } catch {
-      return "00000000-0000-0000-0000-000000000000";
+      return MOCK_TEACHER_ID;
     }
   }
 
   function fakeGuid() {
-    // demo id, sau này lấy từ API
+    // tạm tạo id để UI hoạt động (vì BE đang không trả id)
     return `cls_${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 
@@ -144,7 +169,6 @@ export default function CreateClassPage() {
     if (!isValidMonth(form.startMonth) || !isValidYear(form.startYear)) return false;
     if (!isValidMonth(form.endMonth) || !isValidYear(form.endYear)) return false;
 
-    // start <= end
     if (compareYYYYMM(form.startYear, form.startMonth, form.endYear, form.endMonth) > 0) return false;
 
     const max = Number(form.maxCapacity);
@@ -156,48 +180,54 @@ export default function CreateClassPage() {
   async function handleCreateClass() {
     if (!validate()) return;
 
+    setCreateError("");
     const teacherId = getTeacherId();
 
-    // build payload theo DB
     const payload = {
-      Name: form.name.trim(),
-      GradeId: form.gradeId, // guid
-      TeacherId: teacherId,  // guid
-      RoomName: form.roomName.trim(),
-      StartDate: toFirstDayISO(form.startMonth, form.startYear), // date
-      EndDate: toFirstDayISO(form.endMonth, form.endYear),       // date
-      CurrentStudentCount: 0,
-      MaxCapacity: Number(form.maxCapacity),
-      ClassDescription: form.classDescription.trim(),
+      name: form.name.trim(),
+      gradeId: form.gradeId,
+      startDate: toFirstDayISO(form.startMonth, form.startYear),
+      endDate: toFirstDayISO(form.endMonth, form.endYear),
+      maxCapacity: Number(form.maxCapacity),
+      roomName: form.roomName.trim(),
+      description: form.classDescription.trim(),
     };
 
-    // TODO: call API create class thật:
-    // const res = await ClassApi.create(payload)
-    // const newId = res.id
+    try {
+      setIsCreating(true);
 
-    const newId = fakeGuid();
+      // POST /api/classes?teacherId=...
+      await classService.createClass(teacherId, payload);
 
-    const createdObj: CreatedClass = {
-      id: newId,
-      name: payload.Name,
-      gradeId: payload.GradeId,
-      teacherId: payload.TeacherId,
-      roomName: payload.RoomName,
-      startDate: payload.StartDate,
-      endDate: payload.EndDate,
-      currentStudentCount: payload.CurrentStudentCount,
-      maxCapacity: payload.MaxCapacity,
-      classDescription: payload.ClassDescription,
-    };
+      // ✅ do BE không trả classId => tạm gán fake id để lưu selectedClassId nếu muốn
+      const classId = fakeGuid();
 
-    setCreatedClass(createdObj);
-    setCreated(true);
+      const createdObj: CreatedClass = {
+        id: classId,
+        name: payload.name,
+        gradeId: payload.gradeId,
+        teacherId,
+        roomName: payload.roomName,
+        startDate: payload.startDate,
+        endDate: payload.endDate,
+        currentStudentCount: 0,
+        maxCapacity: payload.maxCapacity,
+        classDescription: payload.description,
+      };
+
+      setCreatedClass(createdObj);
+      setCreated(true);
+    } catch (e: any) {
+      setCreateError(e?.message ?? "Tạo lớp học thất bại.");
+    } finally {
+      setIsCreating(false);
+    }
   }
 
   function handleViewClass() {
-    if (!createdClass) return;
-    saveSelectedClassId(createdClass.id);
-    router.push("/main/class"); // route "Lớp của tôi"
+    // nếu có id thì lưu; không có cũng vẫn cho qua trang /main/class
+    if (createdClass?.id) saveSelectedClassId(createdClass.id);
+    router.push("/main/class");
   }
 
   return (
@@ -228,19 +258,32 @@ export default function CreateClassPage() {
             <div className="p-6">
               <div className="text-sm font-semibold text-gray-900 mb-4">Thông tin lớp học</div>
 
+              {gradeError ? (
+                <div className="mb-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  {gradeError}
+                </div>
+              ) : null}
+
+              {createError ? (
+                <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  {createError}
+                </div>
+              ) : null}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField label="Tên lớp học" required>
                   <Input
                     placeholder="VD: 2A3"
                     value={form.name}
                     onChange={(e: any) => setField("name", e.target.value)}
+                    disabled={isCreating}
                   />
                 </FormField>
 
                 <FormField label="Khối" required>
                   <Select
-                    options={GRADE_OPTIONS}
-                    placeholder="Chọn khối"
+                    options={gradeOptions}
+                    placeholder={gradeLoading ? "Đang tải khối" : "Chọn khối"}
                     value={form.gradeId}
                     onChange={(v: string) => setField("gradeId", v)}
                   />
@@ -251,12 +294,13 @@ export default function CreateClassPage() {
                     placeholder="VD: P14"
                     value={form.roomName}
                     onChange={(e: any) => setField("roomName", e.target.value)}
+                    disabled={isCreating}
                   />
                 </FormField>
 
                 <div />
 
-                {/* Năm học => StartDate/EndDate dạng [tháng][năm] - [tháng][năm] */}
+                {/* Năm học */}
                 <div className="md:col-span-2">
                   <FormField label="Năm học" required>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -269,6 +313,7 @@ export default function CreateClassPage() {
                             onChange={(e: any) =>
                               setField("startMonth", String(e.target.value).replace(/\D/g, "").slice(0, 2))
                             }
+                            disabled={isCreating}
                           />
                           <Input
                             placeholder="Năm"
@@ -276,6 +321,7 @@ export default function CreateClassPage() {
                             onChange={(e: any) =>
                               setField("startYear", String(e.target.value).replace(/\D/g, "").slice(0, 4))
                             }
+                            disabled={isCreating}
                           />
                         </div>
                       </div>
@@ -289,6 +335,7 @@ export default function CreateClassPage() {
                             onChange={(e: any) =>
                               setField("endMonth", String(e.target.value).replace(/\D/g, "").slice(0, 2))
                             }
+                            disabled={isCreating}
                           />
                           <Input
                             placeholder="Năm"
@@ -296,12 +343,11 @@ export default function CreateClassPage() {
                             onChange={(e: any) =>
                               setField("endYear", String(e.target.value).replace(/\D/g, "").slice(0, 4))
                             }
+                            disabled={isCreating}
                           />
                         </div>
                       </div>
                     </div>
-
-                    
                   </FormField>
                 </div>
 
@@ -313,6 +359,7 @@ export default function CreateClassPage() {
                       onChange={(e: any) =>
                         setField("maxCapacity", String(e.target.value).replace(/\D/g, "").slice(0, 3))
                       }
+                      disabled={isCreating}
                     />
                   </FormField>
                 </div>
@@ -324,17 +371,23 @@ export default function CreateClassPage() {
                       placeholder="Nhập mô tả về lớp học..."
                       value={form.classDescription}
                       onChange={(e: any) => setField("classDescription", e.target.value)}
+                      disabled={isCreating}
                     />
                   </FormField>
                 </div>
               </div>
 
               <div className="mt-8 flex items-center justify-between gap-4">
-                <Button variant="primary" className="flex-1" onClick={handleCreateClass}>
-                  + Tạo lớp học
+                <Button
+                  variant="primary"
+                  className={clsx("flex-1", isCreating && "opacity-70 cursor-not-allowed")}
+                  onClick={handleCreateClass}
+                  disabled={isCreating}
+                >
+                  {isCreating ? "Đang tạo..." : "+ Tạo lớp học"}
                 </Button>
 
-                <Button variant="outline" onClick={resetForm}>
+                <Button variant="outline" onClick={resetForm} disabled={isCreating}>
                   Đặt lại
                 </Button>
               </div>
@@ -354,9 +407,7 @@ export default function CreateClassPage() {
               </div>
 
               <div className="mt-4 font-semibold text-gray-900">Tạo lớp học thành công!</div>
-              <div className="text-sm text-gray-500 mt-1">
-                Lớp học đã được tạo và sẵn sàng để sử dụng
-              </div>
+              <div className="text-sm text-gray-500 mt-1">Lớp học đã được tạo và sẵn sàng để sử dụng</div>
             </div>
 
             <div className="mt-6 rounded-xl bg-gray-50 border border-gray-100 p-6">
@@ -380,25 +431,13 @@ export default function CreateClassPage() {
               </div>
             </div>
 
-            <div className="mt-6 flex flex-col md:flex-row gap-4">
-              <Button variant="primary" className="flex-1" onClick={() => setShowAddStudent(true)}>
-                Thêm học sinh vào lớp học
-              </Button>
-
-              <Button variant="outline" className="flex-1" onClick={handleViewClass}>
+            {/* ✅ Chỉ còn 1 nút Xem lớp học */}
+            <div className="mt-6">
+              <Button variant="primary" className="w-full" onClick={handleViewClass}>
                 Xem lớp học
               </Button>
             </div>
           </div>
-
-          <AddStudentModal
-            open={showAddStudent}
-            onClose={() => setShowAddStudent(false)}
-            onSubmit={(payload: StudentPayload) => {
-              // TODO: add student to class createdClass?.id
-              console.log("Add student payload:", payload, "classId:", createdClass?.id);
-            }}
-          />
         </>
       )}
     </div>
@@ -407,15 +446,7 @@ export default function CreateClassPage() {
 
 /* ---------- small parts ---------- */
 
-function InfoItem({
-  label,
-  value,
-  className,
-}: {
-  label: string;
-  value: string;
-  className?: string;
-}) {
+function InfoItem({ label, value, className }: { label: string; value: string; className?: string }) {
   return (
     <div className={className}>
       <div className="text-xs text-gray-500">{label}</div>

@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { useRouter } from "next/navigation";
+import { authService } from "@/services/authService";
+import { tokenStorage } from "@/services/tokenStorage";
 
 const PRIMARY = "#518581";
 
@@ -15,11 +17,36 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
-    // TODO: call API login here
-    router.push("/main");
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setErrorMsg("");
+
+    if (!email.trim() || !password.trim()) {
+      setErrorMsg("Vui lòng nhập đầy đủ email và mật khẩu.");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      // Login TEACHER (đúng endpoint của BE bạn: POST /api/auth/teacher/login)
+      const tokens = await authService.teacherLogin({
+        email: email.trim(),
+        password,
+      });
+
+      // Lưu token theo remember: true -> localStorage, false -> sessionStorage
+      tokenStorage.save(tokens, remember);
+
+      router.push("/main");
+    } catch (err: any) {
+      setErrorMsg(err?.message ?? "Đăng nhập thất bại. Vui lòng thử lại.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -40,6 +67,13 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Error */}
+          {errorMsg ? (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {errorMsg}
+            </div>
+          ) : null}
+
           {/* Email */}
           <div>
             <label className="text-sm text-gray-800">
@@ -54,6 +88,8 @@ export default function LoginPage() {
                 "border-gray-200 focus:ring-2"
               )}
               style={{ ["--tw-ring-color" as any]: `${PRIMARY}33` }}
+              disabled={isLoading}
+              autoComplete="email"
             />
           </div>
 
@@ -73,12 +109,15 @@ export default function LoginPage() {
                   "border-gray-200 focus:ring-2"
                 )}
                 style={{ ["--tw-ring-color" as any]: `${PRIMARY}33` }}
+                disabled={isLoading}
+                autoComplete="current-password"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-md"
                 title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                disabled={isLoading}
               >
                 <EyeIcon />
               </button>
@@ -94,6 +133,7 @@ export default function LoginPage() {
                 onChange={(e) => setRemember(e.target.checked)}
                 className="h-4 w-4 rounded border-gray-300"
                 style={{ accentColor: PRIMARY }}
+                disabled={isLoading}
               />
               Ghi nhớ đăng nhập
             </label>
@@ -103,6 +143,7 @@ export default function LoginPage() {
               className="text-sm hover:underline"
               style={{ color: PRIMARY }}
               onClick={() => router.push("/forgot-password")}
+              disabled={isLoading}
             >
               Quên mật khẩu?
             </button>
@@ -111,16 +152,24 @@ export default function LoginPage() {
           {/* Submit */}
           <button
             type="submit"
-            className="w-full h-12 rounded-lg text-white font-medium transition"
+            className={clsx(
+              "w-full h-12 rounded-lg text-white font-medium transition",
+              isLoading ? "opacity-70 cursor-not-allowed" : "hover:opacity-95"
+            )}
             style={{ backgroundColor: PRIMARY }}
+            disabled={isLoading}
           >
-            Đăng nhập
+            {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
           </button>
 
           {/* Footer */}
           <div className="text-center text-xs text-gray-500 pt-2">
             Chưa có tài khoản?{" "}
-            <Link href="/register" className="hover:underline" style={{ color: PRIMARY }}>
+            <Link
+              href="/register"
+              className="hover:underline"
+              style={{ color: PRIMARY }}
+            >
               Đăng ký ngay
             </Link>
           </div>

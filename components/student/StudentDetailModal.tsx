@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import type { StudentRow } from "@/types/student";
 
@@ -13,6 +13,24 @@ type Props = {
   onSave: (updated: StudentRow) => void;
 };
 
+function isoToVN(iso?: string) {
+  if (!iso) return "-";
+  // yyyy-mm-dd -> dd/mm/yyyy
+  const [y, m, d] = String(iso).split("-");
+  if (!y || !m || !d) return iso;
+  return `${d}/${m}/${y}`;
+}
+
+function isISODate(v: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(v);
+}
+
+const GENDER_OPTIONS = [
+  { value: "Nam", label: "Nam" },
+  { value: "Nữ", label: "Nữ" },
+  { value: "Khác", label: "Khác" },
+];
+
 export default function StudentDetailModal({ open, student, onClose, onSave }: Props) {
   const [edit, setEdit] = useState(false);
   const [form, setForm] = useState<StudentRow | null>(null);
@@ -24,7 +42,18 @@ export default function StudentDetailModal({ open, student, onClose, onSave }: P
 
   const canSave = useMemo(() => {
     if (!form) return false;
-    return form.fullName.trim() && form.parentName.trim() && /^\d{10}$/.test(form.phone);
+
+    const nameOk = !!form.fullName?.trim();
+    const dobOk = !!form.dob && isISODate(form.dob);
+    const genderOk = !!form.gender?.trim();
+    const relOk = !!form.relationshipWithParent?.trim();
+
+    const addrOk = !!form.address?.trim();
+    const pOk = !!form.province?.trim();
+    const dOk = !!form.district?.trim();
+    const wOk = !!form.ward?.trim();
+
+    return nameOk && dobOk && genderOk && relOk && addrOk && pOk && dOk && wOk;
   }, [form]);
 
   if (!open || !student || !form) return null;
@@ -52,11 +81,7 @@ export default function StudentDetailModal({ open, student, onClose, onSave }: P
 
         <div className="px-6 py-5 space-y-5">
           {/* Section: Student */}
-          <Section
-            icon={<UserIcon />}
-            iconBg="bg-emerald-50 text-emerald-700"
-            title="Thông tin học sinh"
-          >
+          <Section icon={<UserIcon />} iconBg="bg-emerald-50 text-emerald-700" title="Thông tin học sinh">
             <TwoCol
               label1="Họ và tên"
               value1={
@@ -69,85 +94,90 @@ export default function StudentDetailModal({ open, student, onClose, onSave }: P
               label2="Ngày sinh"
               value2={
                 edit ? (
-                  <Input value={form.dob} onChange={(v) => setField("dob", v)} placeholder="dd/mm/yyyy" />
+                  <Input type="date" value={form.dob || ""} onChange={(v) => setField("dob", v)} />
                 ) : (
-                  <TextValue value={student.dob} />
+                  <TextValue value={isoToVN(student.dob)} />
                 )
               }
             />
 
-            <OneCol
-              label="Địa chỉ"
-              value={
-                edit ? (
-                  <Input value={form.address} onChange={(v) => setField("address", v)} />
-                ) : (
-                  <TextValue value={student.address} />
-                )
-              }
-            />
-          </Section>
-
-          {/* Section: Parent */}
-          <Section
-            icon={<ParentIcon />}
-            iconBg="bg-amber-50 text-amber-700"
-            title="Thông tin phụ huynh"
-          >
             <TwoCol
-              label1="Họ và tên"
+              label1="Giới tính"
               value1={
                 edit ? (
-                  <Input value={form.parentName} onChange={(v) => setField("parentName", v)} />
+                  <Select
+                    value={form.gender || ""}
+                    onChange={(v) => setField("gender", v)}
+                    options={GENDER_OPTIONS}
+                    placeholder="Chọn giới tính"
+                  />
                 ) : (
-                  <TextValue value={student.parentName} />
+                  <TextValue value={student.gender || "-"} badge />
                 )
               }
-              label2="Số điện thoại"
+              label2="Quan hệ với PH"
               value2={
                 edit ? (
                   <Input
-                    value={form.phone}
-                    onChange={(v) => setField("phone", v.replace(/\D/g, "").slice(0, 10))}
-                    placeholder="10 chữ số"
-                    error={form.phone && !/^\d{10}$/.test(form.phone) ? "SĐT phải đúng 10 chữ số" : undefined}
+                    value={form.relationshipWithParent || ""}
+                    onChange={(v) => setField("relationshipWithParent", v)}
+                    placeholder="VD: Mẹ / Ba / Ông / Bà..."
                   />
                 ) : (
-                  <TextValue value={student.phone} badge />
+                  <TextValue value={student.relationshipWithParent || "-"} badge />
                 )
               }
             />
 
             <OneCol
-              label="Email"
+              label="Địa chỉ (Số nhà, đường)"
               value={
                 edit ? (
-                  <Input value={form.email} onChange={(v) => setField("email", v)} />
+                  <Input value={form.address || ""} onChange={(v) => setField("address", v)} />
                 ) : (
-                  <TextValue value={student.email} />
+                  <TextValue value={student.address || "-"} />
+                )
+              }
+            />
+
+            <ThreeCol
+              label1="Tỉnh/TP"
+              value1={
+                edit ? (
+                  <Input value={form.province || ""} onChange={(v) => setField("province", v)} placeholder="VD: TP.HCM" />
+                ) : (
+                  <TextValue value={student.province || "-"} />
+                )
+              }
+              label2="Quận/Huyện"
+              value2={
+                edit ? (
+                  <Input value={form.district || ""} onChange={(v) => setField("district", v)} placeholder="VD: Quận 3" />
+                ) : (
+                  <TextValue value={student.district || "-"} />
+                )
+              }
+              label3="Phường/Xã"
+              value3={
+                edit ? (
+                  <Input value={form.ward || ""} onChange={(v) => setField("ward", v)} placeholder="VD: Phường 1" />
+                ) : (
+                  <TextValue value={student.ward || "-"} />
                 )
               }
             />
           </Section>
 
-          {/* Section: Account */}
-          <Section
-            icon={<KeyIcon />}
-            iconBg="bg-indigo-50 text-indigo-700"
-            title="Thông tin tài khoản"
-          >
+          {/* Section: Parent (read-only) */}
+          <Section icon={<ParentIcon />} iconBg="bg-amber-50 text-amber-700" title="Thông tin phụ huynh (chỉ xem)">
             <TwoCol
-              label1="Tên đăng nhập"
-              value1={<TextValue value={form.phone} badge />}
-              label2="Mật khẩu"
-              value2={
-                edit ? (
-                  <Input value={form.password} onChange={(v) => setField("password", v)} />
-                ) : (
-                  <TextValue value={student.password} badge />
-                )
-              }
+              label1="Họ và tên"
+              value1={<TextValue value={student.parentName || "-"} />}
+              label2="Số điện thoại"
+              value2={<TextValue value={student.phone || "-"} badge />}
             />
+
+            <OneCol label="Email" value={<TextValue value={student.email || "-"} />} />
           </Section>
 
           {/* actions */}
@@ -193,14 +223,24 @@ export default function StudentDetailModal({ open, student, onClose, onSave }: P
                     setEdit(false);
                     onClose();
                   }}
-                  className={clsx("flex-1 h-12 rounded-xl text-white font-medium shadow-sm", !canSave && "opacity-60")}
+                  className={clsx(
+                    "flex-1 h-12 rounded-xl text-white font-medium shadow-sm",
+                    !canSave && "opacity-60 cursor-not-allowed"
+                  )}
                   style={{ backgroundColor: PRIMARY }}
+                  title={!canSave ? "Vui lòng nhập đủ thông tin bắt buộc" : "Lưu"}
                 >
                   Lưu thay đổi
                 </button>
               </>
             )}
           </div>
+
+          {edit && !canSave ? (
+            <div className="text-xs text-gray-500">
+              Bắt buộc: Họ tên, Ngày sinh (yyyy-mm-dd), Giới tính, Quan hệ với PH, Địa chỉ, Tỉnh/TP, Quận/Huyện, Phường/Xã.
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
@@ -250,6 +290,30 @@ function TwoCol({
   );
 }
 
+function ThreeCol({
+  label1,
+  value1,
+  label2,
+  value2,
+  label3,
+  value3,
+}: {
+  label1: string;
+  value1: React.ReactNode;
+  label2: string;
+  value2: React.ReactNode;
+  label3: string;
+  value3: React.ReactNode;
+}) {
+  return (
+    <div className="grid grid-cols-3 gap-4">
+      <Field label={label1}>{value1}</Field>
+      <Field label={label2}>{value2}</Field>
+      <Field label={label3}>{value3}</Field>
+    </div>
+  );
+}
+
 function OneCol({ label, value }: { label: string; value: React.ReactNode }) {
   return <Field label={label}>{value}</Field>;
 }
@@ -279,15 +343,18 @@ function Input({
   onChange,
   placeholder,
   error,
+  type = "text",
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   error?: string;
+  type?: string;
 }) {
   return (
     <div>
       <input
+        type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -299,6 +366,34 @@ function Input({
       />
       {error && <div className="text-xs text-red-500 mt-1">{error}</div>}
     </div>
+  );
+}
+
+function Select({
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full h-10 rounded-lg border border-gray-200 px-3 outline-none focus:ring-2"
+      style={{ ["--tw-ring-color" as any]: `${PRIMARY}33` }}
+    >
+      <option value="">{placeholder || "Chọn"}</option>
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -323,15 +418,6 @@ function ParentIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
       <path d="M16 11a4 4 0 1 0-8 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       <path d="M4 22c0-4 4-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-function KeyIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-      <path d="M21 2l-2 2m-3 3-2 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M7 14a4 4 0 1 1 5.657-5.657A4 4 0 0 1 7 14Z" stroke="currentColor" strokeWidth="2" />
-      <path d="M10 12l3 3 2-2 2 2 2-2-3-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }

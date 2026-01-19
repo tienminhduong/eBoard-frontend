@@ -1,53 +1,85 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
+
 import ExportListModal from "@/components/student/ExportListModal";
 import ImportStudentsModal from "@/components/student/ImportStudentModal";
 import ConfirmParentsModal from "@/components/student/ConfirmParentsModal";
 import StudentDetailModal from "@/components/student/StudentDetailModal";
 import ParentTicketModal from "@/components/student/ParentTicketModal";
 import DeleteConfirmModal from "@/components/student/DeleteConfirmModal";
+import AddStudentModal, { CreateStudentRequest } from "@/components/class/AddStudentModal";
 import type { StudentRow, ImportedStudent } from "@/types/student";
+import { classService } from "@/services/classService";
+import { studentService } from "@/services/studentService";
 
 const PRIMARY = "#518581";
 
-// Demo: đọc classId / className từ localStorage (bạn lưu ở CreateClass / MyClass)
-function getSelectedClass() {
-  if (typeof window === "undefined") return { classId: "", className: "Lớp" };
-  const classId = localStorage.getItem("selectedClassId") || "";
-  const className = localStorage.getItem("selectedClassName") || "Lớp";
-  return { classId, className };
+const SELECTED_CLASS_ID_KEY = "selectedClassId";
+const SELECTED_CLASS_NAME_KEY = "selectedClassName";
+
+function formatDobISOToVN(iso?: string) {
+  if (!iso) return "";
+  const [y, m, d] = String(iso).split("-");
+  if (!y || !m || !d) return String(iso);
+  return `${d}/${m}/${y}`;
+}
+
+function payloadToImportedStudent(p: CreateStudentRequest, idx: number): ImportedStudent {
+  const fullName = `${p.lastName} ${p.firstName}`.trim();
+
+  return {
+    id: `imp_${idx}`,
+    fullName: fullName || "Không rõ",
+    dob: formatDobISOToVN(p.dateOfBirth),
+
+    province: p.province ?? "",
+    district: p.district ?? "",
+    ward: p.ward ?? "",
+    gender: p.gender ?? "",
+    relationshipWithParent: p.relationshipWithParent ?? "",
+
+    address: p.address || "-",
+    parentName: p.parentFullName || "-",
+    email: "",
+    phone: p.parentPhoneNumber || "-",
+    password: "-",
+  };
+}
+
+// tách họ tên "Nguyễn Văn A" -> lastName + firstName
+function splitFullName(fullName: string) {
+  const name = fullName.trim().replace(/\s+/g, " ");
+  const parts = name.split(" ").filter(Boolean);
+  const firstName = parts.pop() || "";
+  const lastName = parts.join(" ");
+  return { firstName, lastName };
 }
 
 export default function StudentsPage() {
-  const { className } = getSelectedClass();
+  const [hydrated, setHydrated] = useState(false);
+  const [classId, setClassId] = useState("");
+  const [className, setClassName] = useState("Lớp");
 
-  // --------- Demo data (sau này bạn load API theo classId) ----------
-  const [students, setStudents] = useState<StudentRow[]>([
-    {
-      id: "1",
-      fullName: "Nguyễn Văn An",
-      dob: "15/03/2018",
-      address: "123 Lê Lợi, Quận 1, TP. HCM",
-      parentName: "Nguyễn Văn Bình",
-      email: "nvbinh@gmail.com",
-      phone: "0912345678",
-      password: "aB3xY9",
-    },
-    {
-      id: "2",
-      fullName: "Trần Thị Bảo",
-      dob: "22/07/2018",
-      address: "456 Nguyễn Huệ, Quận 3, TP. HCM",
-      parentName: "Trần Văn Cường",
-      email: "tvcuong@gmail.com",
-      phone: "0987654321",
-      password: "zK8mN4",
-    },
-  ]);
+  useEffect(() => {
+    const cid = localStorage.getItem(SELECTED_CLASS_ID_KEY) || "";
+    const cname = localStorage.getItem(SELECTED_CLASS_NAME_KEY) || "Lớp";
+    setClassId(cid);
+    setClassName(cname);
+    setHydrated(true);
+  }, []);
 
+  const [students, setStudents] = useState<StudentRow[]>([]);
   const [q, setQ] = useState("");
+
+  // load state
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
+
+  // paging
+  const [pageNumber] = useState(1);
+  const [pageSize] = useState(20);
 
   // modals
   const [exportOpen, setExportOpen] = useState(false);
@@ -58,8 +90,95 @@ export default function StudentsPage() {
   const [ticketOpen, setTicketOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const [imported, setImported] = useState<ImportedStudent[]>([]);
+  const [addOpen, setAddOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState("");
+
+  // Import: payload để POST + preview cho confirm UI
+  const [importPayloads, setImportPayloads] = useState<CreateStudentRequest[]>([]);
+  const [importPreview, setImportPreview] = useState<ImportedStudent[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState("");
+
   const [selectedStudent, setSelectedStudent] = useState<StudentRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+const [deleteError, setDeleteError] = useState("");
+async function handleDeleteStudent() {
+  if (!classId || !selectedStudent?.id) return;
+
+  try {
+    setDeleteError("");
+    setDeleting(true);
+
+    await classService.removeStudentFromClass(classId, selectedStudent.id);
+
+    setDeleteOpen(false);
+    setSelectedStudent(null);
+    await loadStudents(); // cập nhật lại tổng + danh sách
+  } catch (e: any) {
+    setDeleteError(e?.message ?? "Xóa học sinh thất bại.");
+  } finally {
+    setDeleting(false);
+  }
+}
+
+
+  async function loadStudents() {
+    if (!classId) {
+      setStudents([]);
+      setLoadError("Chưa chọn lớp. Hãy bấm 'Quản lý' từ trang Lớp của tôi trước.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setLoadError("");
+
+      const json = await classService.getStudentsByClassId(classId, pageNumber, pageSize);
+      const list = Array.isArray(json?.data) ? json.data : [];
+
+      const mapped: StudentRow[] = list.map((s: any) => {
+        const firstName = s?.firstName ?? "";
+        const lastName = s?.lastName ?? "";
+        const fullName = `${lastName} ${firstName}`.trim() || "Không rõ";
+
+        const parentName = (s?.parent?.fullName ?? "").trim() || "Không rõ";
+        const email = (s?.parent?.email ?? "").trim() || "-";
+        const phone = (s?.parent?.phoneNumber ?? "").trim() || "-";
+
+        return {
+          id: s?.id ?? "",
+          fullName,
+          dob: formatDobISOToVN(s?.dateOfBirth),
+
+          // list API có thể không trả mấy field này -> fallback
+          gender: s?.gender ?? "",
+          relationshipWithParent: s?.relationshipWithParent ?? "",
+          address: (s?.fullAddress ?? s?.address ?? "").trim() || "-",
+          province: s?.province ?? "",
+          district: s?.district ?? "",
+          ward: s?.ward ?? "",
+
+          parentName,
+          email,
+          phone,
+          password: "-",
+        };
+      });
+
+      setStudents(mapped.filter((x) => x.id));
+    } catch (e: any) {
+      setLoadError(e?.message ?? "Không tải được danh sách học sinh.");
+      setStudents([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!hydrated) return;
+    loadStudents();
+  }, [hydrated, classId]);
 
   const filtered = useMemo(() => {
     const keyword = q.trim().toLowerCase();
@@ -75,9 +194,59 @@ export default function StudentsPage() {
     });
   }, [students, q]);
 
-  // số lượng (demo)
-  const gradeLabel = "Khối lớp 1";
+  const gradeLabel = " ";
   const totalLabel = `Tổng số học sinh: ${students.length}`;
+
+  async function handleAddStudent(payload: CreateStudentRequest) {
+    if (!classId) return;
+
+    try {
+      setAddError("");
+      setAdding(true);
+
+      await studentService.createStudent({
+        ...payload,
+        classId,
+      });
+
+      setAddOpen(false);
+      await loadStudents();
+    } catch (e: any) {
+      setAddError(e?.message ?? "Thêm học sinh thất bại.");
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  // Import create thật lên BE theo danh sách đã confirm
+  async function handleConfirmImport(selectedPreviewRows: ImportedStudent[]) {
+    if (!classId) return;
+
+    try {
+      setImportError("");
+      setImporting(true);
+
+      const selectedIds = new Set(selectedPreviewRows.map((x) => x.id));
+      const selectedPayloads = importPayloads.filter((_, idx) => selectedIds.has(importPreview[idx]?.id));
+
+      for (const p of selectedPayloads) {
+        await studentService.createStudent({
+          ...p,
+          classId,
+        });
+      }
+
+      setConfirmOpen(false);
+      setImportPayloads([]);
+      setImportPreview([]);
+      await loadStudents();
+    } catch (e: any) {
+      setImportError(e?.message ?? "Import thất bại.");
+    } finally {
+      setImporting(false);
+    }
+  }
+  if (!hydrated) return null;
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -85,35 +254,62 @@ export default function StudentsPage() {
         {/* Header */}
         <div className="flex items-start justify-between gap-6">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">
-              Quản lý học sinh - {className}
-            </h1>
+            <h1 className="text-xl font-semibold text-gray-900">Quản lý học sinh - {className}</h1>
             <p className="text-sm text-gray-500 mt-1">
-              {gradeLabel} • {totalLabel}
+              {gradeLabel} {gradeLabel ? "•" : ""} {totalLabel}
             </p>
           </div>
 
           <div className="flex gap-3">
+            {/* THÊM HS */}
+            <button
+              type="button"
+              onClick={() => setAddOpen(true)}
+              className={clsx(
+                "h-10 px-4 rounded-xl text-white font-medium shadow-sm flex items-center gap-2",
+                (!classId || adding) && "opacity-70 cursor-not-allowed"
+              )}
+              style={{ backgroundColor: PRIMARY }}
+              disabled={!classId || adding}
+            >
+              <PlusIcon />
+              Thêm học sinh
+            </button>
+
+            {/* IMPORT */}
             <button
               type="button"
               onClick={() => setImportOpen(true)}
-              className="h-10 px-4 rounded-xl text-white font-medium shadow-sm flex items-center gap-2"
+              className={clsx(
+                "h-10 px-4 rounded-xl text-white font-medium shadow-sm flex items-center gap-2",
+                !classId && "opacity-70 cursor-not-allowed"
+              )}
               style={{ backgroundColor: "#f59e0b" }}
+              disabled={!classId}
             >
               <UploadIcon />
-              Import Excel
+              Nhập file excel
             </button>
 
+            {/* EXPORT */}
             <button
               type="button"
               onClick={() => setExportOpen(true)}
               className="h-10 px-4 rounded-xl border border-emerald-300 text-emerald-800 bg-white font-medium shadow-sm flex items-center gap-2"
+              disabled={!classId}
             >
               <DownloadIcon />
               Xuất danh sách
             </button>
           </div>
         </div>
+
+        {/* Errors / loading */}
+        {loadError ? (
+          <div className="mt-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{loadError}</div>
+        ) : null}
+
+        {loading ? <div className="mt-3 text-sm text-gray-500">Đang tải danh sách học sinh...</div> : null}
 
         {/* Search */}
         <div className="mt-5">
@@ -161,9 +357,7 @@ export default function StudentsPage() {
                     <tr key={st.id} className="border-t border-gray-100">
                       <td className="px-5 py-5 text-sm text-gray-700">{idx + 1}</td>
 
-                      <td className="px-5 py-5 text-sm text-gray-800 font-medium">
-                        {st.fullName}
-                      </td>
+                      <td className="px-5 py-5 text-sm text-gray-800 font-medium">{st.fullName}</td>
 
                       <td className="px-5 py-5 text-sm text-gray-700">{st.dob}</td>
 
@@ -195,7 +389,6 @@ export default function StudentsPage() {
 
                       <td className="px-5 py-5">
                         <div className="flex items-center gap-2">
-                          {/* XÓA */}
                           <IconBtn
                             title="Xóa"
                             tone="danger"
@@ -207,19 +400,44 @@ export default function StudentsPage() {
                             <TrashIcon />
                           </IconBtn>
 
-                          {/* CHI TIẾT / SỬA */}
                           <IconBtn
-                            title="Chi tiết"
+                            title="Chỉnh sửa"
                             tone="warn"
-                            onClick={() => {
-                              setSelectedStudent(st);
-                              setDetailOpen(true);
+                            onClick={async () => {
+                              try {
+                                const s = await studentService.getStudentById(st.id);
+
+                                // ✅ FIX address: ưu tiên fullAddress
+                                const addr = (s.fullAddress ?? s.address ?? "").trim();
+
+                                setSelectedStudent({
+                                  id: s.id,
+                                  fullName: `${s.lastName ?? ""} ${s.firstName ?? ""}`.trim(),
+                                  dob: s.dateOfBirth ?? "", // ISO yyyy-mm-dd
+
+                                  address: addr,
+                                  province: s.province ?? "",
+                                  district: s.district ?? "",
+                                  ward: s.ward ?? "",
+
+                                  gender: s.gender ?? "",
+                                  relationshipWithParent: s.relationshipWithParent ?? "",
+
+                                  parentName: s.parent?.fullName ?? "-",
+                                  phone: s.parent?.phoneNumber ?? "-",
+                                  email: s.parent?.email ?? "-",
+                                  password: "-",
+                                });
+
+                                setDetailOpen(true);
+                              } catch (e: any) {
+                                alert(e?.message ?? "Không lấy được chi tiết học sinh.");
+                              }
                             }}
                           >
                             <EditIcon />
                           </IconBtn>
 
-                          {/* PHIẾU TÀI KHOẢN */}
                           <IconBtn
                             title="Phiếu tài khoản"
                             tone="info"
@@ -241,19 +459,38 @@ export default function StudentsPage() {
         </div>
       </div>
 
-      {/* Export */}
-      <ExportListModal
-        open={exportOpen}
-        onClose={() => setExportOpen(false)}
-        students={students}
+      {/* Add Student Modal */}
+      <AddStudentModal
+        open={addOpen}
+        onClose={() => {
+          setAddError("");
+          setAddOpen(false);
+        }}
+        onSubmit={handleAddStudent}
       />
+
+      {addOpen && addError ? (
+        <div className="max-w-6xl mx-auto px-6 pb-4">
+          <div className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{addError}</div>
+        </div>
+      ) : null}
+
+      {addOpen && adding ? (
+        <div className="max-w-6xl mx-auto px-6 pb-4">
+          <div className="mt-2 text-sm text-gray-500">Đang thêm học sinh...</div>
+        </div>
+      ) : null}
+
+      {/* Export */}
+      <ExportListModal open={exportOpen} onClose={() => setExportOpen(false)} students={students} />
 
       {/* Import */}
       <ImportStudentsModal
         open={importOpen}
         onClose={() => setImportOpen(false)}
         onImported={(rows) => {
-          setImported(rows);
+          setImportPayloads(rows);
+          setImportPreview(rows.map((p, idx) => payloadToImportedStudent(p, idx)));
           setImportOpen(false);
           setConfirmOpen(true);
         }}
@@ -263,49 +500,69 @@ export default function StudentsPage() {
       <ConfirmParentsModal
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        students={imported}
-        onConfirm={(selected) => {
-          // demo: merge vào bảng
-          const mapped: StudentRow[] = selected.map((s, i) => ({
-            id: `imp-${Date.now()}-${i}`,
-            fullName: s.fullName,
-            dob: s.dob,
-            address: s.address,
-            parentName: s.parentName,
-            email: s.email,
-            phone: s.phone,
-            password: s.password,
-          }));
-          setStudents((prev) => [...prev, ...mapped]);
+        students={importPreview}
+        onConfirm={async (selected) => {
+          await handleConfirmImport(selected);
         }}
       />
+
+      {confirmOpen && importError ? (
+        <div className="max-w-6xl mx-auto px-6 pb-4">
+          <div className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{importError}</div>
+        </div>
+      ) : null}
+
+      {confirmOpen && importing ? (
+        <div className="max-w-6xl mx-auto px-6 pb-4">
+          <div className="mt-2 text-sm text-gray-500">Đang import học sinh...</div>
+        </div>
+      ) : null}
 
       {/* Detail / Edit */}
       <StudentDetailModal
         open={detailOpen}
         student={selectedStudent}
         onClose={() => setDetailOpen(false)}
-        onSave={(updated) => {
-          setStudents((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+        onSave={async (updated) => {
+          try {
+            const { firstName, lastName } = splitFullName(updated.fullName);
+
+            await studentService.updateStudent(updated.id, {
+              firstName,
+              lastName,
+              relationshipWithParent: updated.relationshipWithParent,
+              dateOfBirth: updated.dob, // ISO yyyy-mm-dd
+              gender: updated.gender,
+              address: updated.address,
+              province: updated.province,
+              district: updated.district,
+              ward: updated.ward,
+            });
+
+            setDetailOpen(false);
+            await loadStudents();
+          } catch (e: any) {
+            alert(e?.message ?? "Cập nhật học sinh thất bại.");
+          }
         }}
       />
 
       {/* Ticket */}
-      <ParentTicketModal
-        open={ticketOpen}
-        student={selectedStudent}
-        onClose={() => setTicketOpen(false)}
-      />
+      <ParentTicketModal open={ticketOpen} student={selectedStudent} onClose={() => setTicketOpen(false)} />
 
       {/* Delete confirm */}
       <DeleteConfirmModal
-        open={deleteOpen}
-        onClose={() => setDeleteOpen(false)}
-        onConfirm={() => {
-          if (!selectedStudent) return;
-          setStudents((prev) => prev.filter((x) => x.id !== selectedStudent.id));
-        }}
-      />
+  open={deleteOpen}
+  onClose={() => {
+    if (deleting) return; // tránh đóng khi đang xóa
+    setDeleteError("");
+    setDeleteOpen(false);
+  }}
+  onConfirm={handleDeleteStudent}
+  loading={deleting}
+  error={deleteError}
+/>
+
     </main>
   );
 }
@@ -337,10 +594,7 @@ function IconBtn({
       type="button"
       title={title}
       onClick={onClick}
-      className={clsx(
-        "w-9 h-9 rounded-lg flex items-center justify-center transition",
-        styles
-      )}
+      className={clsx("w-9 h-9 rounded-lg flex items-center justify-center transition", styles)}
     >
       {children}
     </button>
@@ -362,21 +616,19 @@ function SearchIcon() {
   );
 }
 
+function PlusIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function UploadIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M12 3v12m0-12 4 4m-4-4-4 4"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M4 17v3h16v-3"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      <path d="M12 3v12m0-12 4 4m-4-4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M4 17v3h16v-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -384,18 +636,8 @@ function UploadIcon() {
 function DownloadIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M12 3v10m0 0 4-4m-4 4-4-4"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M4 17v3h16v-3"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      <path d="M12 3v10m0 0 4-4m-4 4-4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M4 17v3h16v-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -404,17 +646,12 @@ function EditIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
       <path
-        d="M12 20h9"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5Z"
+        d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0 0-3L16.5 4.5a2.1 2.1 0 0 0-3 0L3 15v5Z"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinejoin="round"
       />
+      <path d="M13.5 6.5l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -427,17 +664,8 @@ function DocIcon() {
         stroke="currentColor"
         strokeWidth="2"
       />
-      <path
-        d="M14 3v3h3"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M8 12h8M8 16h8"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      <path d="M14 3v3h3" stroke="currentColor" strokeWidth="2" />
+      <path d="M8 12h8M8 16h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }

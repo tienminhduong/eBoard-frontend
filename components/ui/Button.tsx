@@ -9,6 +9,7 @@ interface AppButtonProps {
   variant?: Variant;
   onClick?: () => void;
   className?: string;
+  disabled?: boolean;
 }
 
 export default function Button({

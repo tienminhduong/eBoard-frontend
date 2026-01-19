@@ -1,12 +1,21 @@
 export type StudentRow = {
   id: string;
   fullName: string;
-  dob: string;        // dd/mm/yyyy
+  dob: string;
+
   address: string;
+  province: string;
+  district: string;
+  ward: string;
+
+  gender: string;
+  relationshipWithParent: string;
+
   parentName: string;
+  phone: string;
   email: string;
-  phone: string;      // username
   password: string;
 };
+
 
 export type ImportedStudent = StudentRow;
