@@ -1,4 +1,5 @@
 // src/services/student.service.ts
+import api from "@/lib/api";
 
 export type CreateStudentRequest = {
   firstName: string;
@@ -44,54 +45,33 @@ export type StudentOptionDto = {
   fullName: string;
 };
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "https://localhost:7206";
-
-async function throwIfNotOk(res: Response) {
-  if (res.ok) return;
-  const text = await res.text().catch(() => "");
-  throw new Error(text || `Request failed (${res.status})`);
-}
-
 export const studentService = {
   // POST /api/students
   async createStudent(payload: CreateStudentRequest): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/students`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    await throwIfNotOk(res);
+    await api.post("/students", payload);
   },
 
   // GET /api/students/{id}
   async getStudentById(id: string): Promise<StudentInfoDto> {
-    const res = await fetch(`${API_BASE}/api/students/${id}`, {
-      method: "GET",
-    });
-
-    await throwIfNotOk(res);
-    return (await res.json()) as StudentInfoDto;
+    const res = await api.get<StudentInfoDto>(`/students/${id}`);
+    return res.data;
   },
 
   //update
-  async updateStudent(id: string, payload: any) {
-    const res = await fetch(`${API_BASE}/api/students/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error(await res.text());
+  async updateStudent(
+    id: string,
+    payload: Partial<CreateStudentRequest>
+  ): Promise<void> {
+    await api.patch(`/students/${id}`, payload);
   },
 
   // GET /api/students/{classId}/lists
-  async getStudentsOptionInClass(classId: string): Promise<StudentOptionDto[]> {
-    const res = await fetch(`${API_BASE}/api/students/${classId}/lists`, {
-      method: "GET",
-    });
-
-    await throwIfNotOk(res);
-    return (await res.json()) as StudentOptionDto[];
+  async getStudentsOptionInClass(
+    classId: string
+  ): Promise<StudentOptionDto[]> {
+    const res = await api.get<StudentOptionDto[]>(
+      `/students/${classId}/lists`
+    );
+    return res.data;
   },
 };

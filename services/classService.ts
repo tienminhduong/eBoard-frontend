@@ -1,8 +1,6 @@
 // src/services/classService.ts
 import { Class, ClassInfo } from "@/types/Class";
-import { api } from "@/lib/api";
-
-const API_BASE = "https://localhost:7206";
+import api from "@/lib/api";
 
 /* ===================== TYPES ===================== */
 export type GradeDto = { id: string; name: string };
@@ -51,89 +49,71 @@ export type TeachingClassListResponse =
   | { data: TeachingClassDto[] }
   | any;
 
-/* ===================== HELPERS ===================== */
-async function readError(res: Response) {
-  const text = await res.text().catch(() => "");
-  return text || `Request failed with status ${res.status}`;
-}
-
-async function parseError(res: Response) {
-  const text = await res.text();
-  try {
-    const json = JSON.parse(text);
-    return json?.message || json?.title || text || `HTTP ${res.status}`;
-  } catch {
-    return text || `HTTP ${res.status}`;
-  }
-}
-
 /* ===================== SERVICES ===================== */
 export const classService = {
+  // GET /api/grades
   async getGrades(): Promise<GradeDto[]> {
-    const res = await fetch(`${API_BASE}/api/grades`, { method: "GET" });
-    if (!res.ok) throw new Error(await readError(res));
-    return (await res.json()) as GradeDto[];
+    const res = await api.get<GradeDto[]>("/grades");
+    return res.data;
   },
 
-  async createClass(teacherId: string, payload: CreateClassPayload): Promise<void> {
-    const url = `${API_BASE}/api/classes?teacherId=${encodeURIComponent(teacherId)}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+  // POST /api/classes?teacherId=...
+  async createClass(
+    teacherId: string,
+    payload: CreateClassPayload
+  ): Promise<void> {
+    await api.post("/classes", payload, {
+      params: { teacherId },
     });
-    if (!res.ok) throw new Error(await readError(res));
   },
 
-  // ✅ thêm: GET /api/classes/teaching?teacherId=...
-  async getTeachingClasses(teacherId: string): Promise<TeachingClassListResponse> {
-    const url = `${API_BASE}/api/classes/teaching?teacherId=${encodeURIComponent(teacherId)}`;
-    const res = await fetch(url, { method: "GET" });
-    if (!res.ok) throw new Error(await readError(res));
-    return (await res.json()) as TeachingClassListResponse;
+  // GET /api/classes/teaching?teacherId=...
+  async getTeachingClasses(
+    teacherId: string
+  ): Promise<TeachingClassListResponse> {
+    const res = await api.get<TeachingClassListResponse>(
+      "/classes/teaching",
+      {
+        params: { teacherId },
+      }
+    );
+    return res.data;
   },
 
-  // ✅ thêm: GET /api/classes/{classId}
+  // GET /api/classes/{classId}
   async getClassById(classId: string): Promise<TeachingClassDto> {
-    const url = `${API_BASE}/api/classes/${encodeURIComponent(classId)}`;
-    const res = await fetch(url, { method: "GET" });
-    if (!res.ok) throw new Error(await readError(res));
-    return (await res.json()) as TeachingClassDto;
+    const res = await api.get<TeachingClassDto>(`/classes/${classId}`);
+    return res.data;
   },
 
+  // GET /api/classes/{classId} (ClassInfo version - kvy)
   async getClassInfoById(classId: string) {
     return api
       .get<ClassInfo>(`/classes/${classId}`)
       .then(res => res.data);
   },
 
-  //get all students
+  // GET /api/classes/{classId}/students - GET all
   async getStudentsByClassId(
     classId: string,
-    pageNumber: number = 1,
-    pageSize: number = 20
+    pageNumber = 1,
+    pageSize = 20
   ): Promise<PagedStudentInClassDto> {
-    const url =
-      `${API_BASE}/api/classes/${classId}/students` +
-      `?pageNumber=${pageNumber}&pageSize=${pageSize}`;
-
-    const res = await fetch(url, { method: "GET" });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(text || `Request failed (${res.status})`);
-    }
-
-    return (await res.json()) as PagedStudentInClassDto;
+    const res = await api.get<PagedStudentInClassDto>(
+      `/classes/${classId}/students`,
+      {
+        params: { pageNumber, pageSize },
+      }
+    );
+    return res.data;
   },
 
-  //delete student
-  async removeStudentFromClass(classId: string, studentId: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/classes/${classId}/students/${studentId}`, {
-      method: "DELETE",
-    });
-
-    if (!res.ok) throw new Error(await parseError(res));
+  // DELETE /api/classes/{classId}/students/{studentId}
+  async removeStudentFromClass(
+    classId: string,
+    studentId: string
+  ): Promise<void> {
+    await api.delete(`/classes/${classId}/students/${studentId}`);
   },
 };
 
