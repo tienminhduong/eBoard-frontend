@@ -36,7 +36,7 @@ export default function TimetableSession({
 }: Props) {
   return (
     <div className="space-y-4">
-      <h4 className="font-semibold text-xl">{title}</h4>
+      <h4 className="font-semibold text-lg">{title}</h4>
 
       <div className="grid grid-cols-[140px_repeat(5,1fr)] gap-4">
         {/* empty corner */}

@@ -108,9 +108,11 @@ export default function TimetableDetailModal({
         period,
         isMorning,
       });
-
+      alert("Cập nhật tiết học thành công");
       onUpdated?.();
       onClose();
+    } catch (err: any) {
+      alert(err.message || "Cập nhật tiết học thất bại");
     } finally {
       setLoading(false);
     }

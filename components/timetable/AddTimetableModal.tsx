@@ -111,11 +111,11 @@ export default function AddTimetableModal({ open, onClose, classId, prefill, onC
         note,
         classId,
       });
-
+      alert("Thêm tiết học mới thành công");
       onCreated?.();
       onClose();
-    } catch (err) {
-      console.error("Create timetable failed", err);
+    } catch (err: any) {
+      alert(err.message || "Thêm tiết học thất bại");
     }
   };
   

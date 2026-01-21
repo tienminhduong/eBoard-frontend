@@ -11,12 +11,14 @@ type Props = {
   open: boolean;
   classId: string;
   onClose: () => void;
+  onUpdated?: () => void;
 };
 
 export default function TimetableSettingsModal({
   open,
   classId,
   onClose,
+  onUpdated,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<TimetableSettings | null>(null);
@@ -64,10 +66,12 @@ export default function TimetableSettingsModal({
 
     try {
       setLoading(true);
-      await timetableService.updateSettings(classId, editData);
+      await timetableService.updateSettings(editData.id, editData);
+      alert("Cập nhật thiết lập thành công");
+      onUpdated?.(); 
       onClose();
-    } catch (err) {
-      console.error("Update settings failed", err);
+    } catch (err: any) {
+      alert(err.message || "Cập nhật thiết lập thất bại");
     } finally {
       setLoading(false);
     }

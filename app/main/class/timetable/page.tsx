@@ -39,14 +39,16 @@ export default function TimetablePage() {
       .then(setData)
       .catch(console.error);
   };
+  const fetchSettings = () => {
+  timetableService
+    .getSettings(CLASS_ID)
+    .then(setSettings)
+    .catch(console.error);
+};
 
   useEffect(() => {
     fetchData();
-
-    timetableService
-      .getSettings(CLASS_ID)
-      .then(setSettings)
-      .catch(console.error);
+    fetchSettings();
   }, []);
 
   // Xóa tiết học
@@ -116,6 +118,10 @@ export default function TimetablePage() {
         open={openSettings}
         classId={CLASS_ID}
         onClose={() => setOpenSettings(false)}
+        onUpdated={() => {
+          fetchSettings();
+          fetchData(); 
+        }}
       />
 
       <div className="bg-white rounded-3xl p-6 shadow-sm border space-y-8">

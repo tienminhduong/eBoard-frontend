@@ -20,7 +20,6 @@ export const timetableService = {
   
   // POST
   async create(payload: CreateTimetablePayload) {
-    try {
       const res = await api.post("/schedule/periods", {
         subject: {
           name: payload.subject,
@@ -34,10 +33,6 @@ export const timetableService = {
       });
 
       return res.data;
-    } catch (err: any) {
-      console.error("Create timetable error:", err.response?.data);
-      throw err;
-    }
   },
 
   // PATCH
@@ -45,26 +40,26 @@ export const timetableService = {
     classPeriodId: string,
     payload: UpdateTimetablePayload
   ) {
-    const res = await api.patch(
-      `/schedule/periods`,
-      {
-        teacherName: payload.teacher,
-        subject: {
-          name: payload.subject,
+      const res = await api.patch(
+        `/schedule/periods`,
+        {
+          teacherName: payload.teacher,
+          subject: {
+            name: payload.subject,
+          },
+          notes: payload.note,
+          periodNumber: payload.period,
+          dayOfWeek: payload.day,
+          isMorningPeriod: payload.isMorning,
         },
-        notes: payload.note,
-        periodNumber: payload.period,
-        dayOfWeek: payload.day,
-        isMorningPeriod: payload.isMorning,
-      },
-      {
-        params: {
-          classPeriodId,
-        },
-      }
-    );
+        {
+          params: {
+            classPeriodId,
+          },
+        }
+      );
 
-    return res.data;
+      return res.data;
   },
 
   // DELETE
@@ -78,13 +73,13 @@ export const timetableService = {
     return res.data;
   },
 
-  // UPDATE SETTINGS
+  // UPDATE SETTINGS (PUT)
   async updateSettings(
-    classId: string,
+    scheduleSettingId: string,
     payload: TimetableSettings
   ) {
-    return api.patch(
-      `/schedule/${classId}/settings`,
+    return api.put(
+      `/schedule/settings/${scheduleSettingId}`,
       {
         morningPeriodCount: payload.morningPeriodCount,
         afternoonPeriodCount: payload.afternoonPeriodCount,
@@ -96,5 +91,5 @@ export const timetableService = {
         })),
       }
     );
-  },
+  }
 };
