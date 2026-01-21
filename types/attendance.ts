@@ -1,9 +1,10 @@
 // types/attendance.ts
+// types/attendance.ts
 
 export type AttendanceStatus =
-  | "PRESENT"
-  | "ABSENT_UNEXCUSED"
-  | "ABSENT_EXCUSED";
+  | "Có mặt"
+  | "Vắng không phép"
+  | "Vắng có phép";
 
 export interface AttendanceRecord {
   id: string;
@@ -33,3 +34,14 @@ export interface PatchAttendanceDto {
   pickupPerson?: string;
   notes?: string;
 }
+
+// constants/pickupPeople.ts
+export const PICKUP_PEOPLE = [
+  "Bố",
+  "Mẹ",
+  "Ông",
+  "Bà",
+  "Anh",
+  "Chị",
+];
+

@@ -9,9 +9,9 @@ interface Props {
 }
 
 export default function AttendanceStats({ data }: Props) {
-  const present = data.filter(x => x.status === "PRESENT").length;
-  const absentNo = data.filter(x => x.status === "ABSENT_UNEXCUSED").length;
-  const absentYes = data.filter(x => x.status === "ABSENT_EXCUSED").length;
+  const present = data.filter(x => x.status === "Có mặt").length;
+  const absentNo = data.filter(x => x.status === "Vắng không phép").length;
+  const absentYes = data.filter(x => x.status === "Vắng có phép").length;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -5,10 +5,7 @@ import {
   PatchAttendanceDto,
 } from "@/types/attendance";
 
-/* ================= SERVICE ================= */
-
 export const attendanceService = {
-  /* ====== Lấy điểm danh theo lớp + ngày ====== */
   async getByClassAndDate(
     classId: string,
     date: string
@@ -17,29 +14,41 @@ export const attendanceService = {
       `/attendance/class/${classId}/date/${date}`
     );
 
-    return res.data;
+    return {
+      ...res.data,
+      date,
+    };
   },
 
-  /* ====== Tạo điểm danh cho ngày ====== */
   async createForDate(
     dto: CreateAttendanceDto
   ): Promise<AttendanceInfoByClass> {
-    const res = await api.post(
-      `/attendance`,
-      dto
-    );
+    const res = await api.post(`/attendance`, dto);
 
-    return res.data;
+    return {
+      ...res.data,
+      date: dto.date,
+    };
   },
 
-  /* ====== Cập nhật 1 dòng điểm danh ====== */
   async patchAttendance(
     attendanceId: string,
     dto: PatchAttendanceDto
   ): Promise<void> {
-    await api.patch(
-      `/attendance/${attendanceId}`,
-      dto
-    );
+    if (!attendanceId || attendanceId.startsWith("00000000")) {
+      console.warn("❌ Invalid attendanceId, skip PATCH");
+      return;
+    }
+
+    await api.patch(`/attendance/${attendanceId}`, dto);
   },
+
+  /* ===== NOTIFY ABSENT (TEMP) ===== */
+  async notifyAbsentParents(dto: {
+    classId: string;
+    date: string;
+    studentIds: string[];
+  }): Promise<void> {
+    await api.post("/attendance/notify-absent", dto);
+  }
 };
