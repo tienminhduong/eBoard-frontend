@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Calendar, List, Filter, Upload, Plus, ChevronLeft, ChevronRight, BookOpen, Clock, FileCheck, FilterX } from "lucide-react";
+import { Calendar, Filter, Upload, Plus, ChevronLeft, ChevronRight, BookOpen, Clock, FileCheck, FilterX } from "lucide-react";
 import { examService } from "@/services/examService";
-import { ExamSchedule } from "@/types/exam";
+import type { ExamSchedule } from "@/types/exam";
 import StatCard from "@/components/ui/StatCard";
 import Legend from "@/components/ui/Legend";
 import { subjectColor } from "@/utils/subjectColor";
@@ -16,7 +16,7 @@ import { getWeekDays } from "@/utils/week";
 import ExamActionMenu from "@/components/exam/ExamActionMenu";
 
 type ExamFilter = {
-  subject?: string;
+  subjectId?: string;
   type?: string;
   fromDate?: string;
   toDate?: string;
@@ -32,21 +32,71 @@ export default function ExamPage() {
   const [openImportExcel, setOpenImportExcel] = useState(false);
   const [weekBase, setWeekBase] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [cloneExam, setCloneExam] = useState<ExamSchedule | null>(null);
-  
+
+  const classId = "04598b0c-3d9f-4519-8581-dadee7db189a";
+
+  // Mapping dữ liệu từ BE sang FE
+  const mapExamFromBE = (e: any): ExamSchedule => {
+    const start = new Date(e.startTime);
+
+    return {
+      id: e.id,
+      subjectId: e.subject.id,
+      subjectName: e.subject.name,
+      type: e.examFormat,
+      date: start.toISOString().slice(0, 10), // 2024-06-17
+      time: start.toISOString().slice(11, 16), // 08:30
+      location: e.location ?? undefined,
+      notes: e.notes ?? undefined,
+    };
+  };
+
+  // Lấy danh sách lịch thi
+  const fetchExamSchedule = async () => {
+    try {
+      const from = days[0].full + "T00:00:00Z";
+      const to = days[days.length - 1].full + "T23:59:59Z";
+
+      const res = await examService.getByClass(classId, {
+        from,
+        to,
+        examFormat: filter.type,
+        subjectId: filter.subjectId,
+      });
+
+      const mapped = res.data.map(mapExamFromBE);
+      setData(mapped);
+    } catch (err) {
+      console.error("Fetch exam schedule failed", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchExamSchedule();
+  }, [weekBase, filter]);
+
   const days = getWeekDays(weekBase);
 
   const onDeleteExam = async (exam: ExamSchedule) => {
-    if (!confirm(`Xoá lịch thi ${exam.subject} ngày ${exam.date}?`)) return;
-    //await examService.delete(exam.id);
-    setData((prev) => prev.filter((e) => e.id !== exam.id));
+    const ok = confirm(
+      `Xoá lịch thi môn ${exam.subjectName} ngày ${exam.date}?`
+    );
+    if (!ok) return;
+
+    try {
+      await examService.deleteExam(exam.id);
+
+      // reload từ server (an toàn nhất)
+      await fetchExamSchedule();
+      alert("Xoá lịch thi thành công");
+    } catch (err) {
+      alert("Xoá lịch thi thất bại");
+    }
   };
 
   const filteredData = data.filter((exam) => {
-    if (filter.subject && exam.subject !== filter.subject) return false;
+    if (filter.subjectId && exam.subjectId !== filter.subjectId) return false;
     if (filter.type && exam.type !== filter.type) return false;
-  ;
-
     if (filter.fromDate && exam.date < filter.fromDate) return false;
     if (filter.toDate && exam.date > filter.toDate) return false;
 
@@ -135,7 +185,7 @@ export default function ExamPage() {
       <div className="bg-white rounded-xl p-6 space-y-4 shadow-sm">
         {/* Week header */}
         <div className="flex justify-between items-center">
-          <h3 className="font-semibold text-xl">
+          <h3 className="font-bold text-lg">
             Tuần {days[0].date} – {days[days.length - 1].date}
           </h3>
           <div className="flex gap-2 text-[#518581]">
@@ -191,7 +241,7 @@ export default function ExamPage() {
                   </div>
 
                   {/* Ngày */}
-                  <p className="text-lg font-bold text-gray-900">
+                  <p className="text-base font-bold text-gray-900">
                     {d.date}
                   </p>
                 </div>
@@ -205,8 +255,8 @@ export default function ExamPage() {
                     }}
                     className="
                       w-full py-6 text-sm italic
-                      text-gray-400 hover:text-[#518581]
-                      hover:bg-[#518581]/5
+                      text-gray-400 hover:text-green-700
+                      hover:bg-green-50
                       rounded-xl transition
                     "
                   >
@@ -216,7 +266,7 @@ export default function ExamPage() {
 
                 {/* Nếu CÓ lịch */}
                 {exams.map((exam) => {
-                  const color = subjectColor[exam.subject];
+                  const color = subjectColor[exam.subjectName];
 
                   return (
                     <div
@@ -232,8 +282,8 @@ export default function ExamPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                           {/* Môn */}
                           <span 
-                            className="font-semibold text-base">
-                            {exam.subject}
+                            className="font-bold text-base">
+                            {exam.subjectName}
                           </span>
 
                           {/* BADGE HÌNH THỨC THI */}
@@ -250,24 +300,29 @@ export default function ExamPage() {
 
                         <ExamActionMenu
                           onEdit={() => setSelectedExam(exam)}
-                          onClone={() => {
-                            setCloneExam(exam);
-                            setOpenAddModal(true);
-                          }}
                           onDelete={() => onDeleteExam(exam)}
                         />
                       </div>
 
                       {/* GIỜ THI */}
-                      <div className="flex items-center gap-1 text-lg font-bold">
+                      <div className="flex items-center gap-1 text-base font-bold">
                         <Clock size={16} />
                         <span>{exam.time}</span>
                       </div>
 
-                      {/* Nội dung */}
-                      <p className="text-xs italic opacity-80">
-                        {exam.content}
-                      </p>
+                      {/* ĐỊA ĐIỂM */}
+                      {exam.location && (
+                        <p className="text-sm flex items-center gap-1 opacity-90">
+                          📍 {exam.location}
+                        </p>
+                      )}
+
+                      {/* GHI CHÚ */}
+                      {exam.notes && (
+                        <p className="text-xs italic opacity-70">
+                          {exam.notes}
+                        </p>
+                      )}
                     </div>
                   );
                 })}
@@ -291,12 +346,18 @@ export default function ExamPage() {
             setOpenAddModal(false);
             setSelectedDate(null);
           }}
+          classId={classId} 
           defaultDate={selectedDate ?? undefined}
+          onCreated={() => {
+            fetchExamSchedule();            // reload danh sách lịch thi
+          }}
         />
         {selectedExam && (
           <ExamDetailModal
             open
             exam={selectedExam}
+            classId={classId}
+            onUpdated={fetchExamSchedule}
             onClose={() => setSelectedExam(null)}
           />
         )}
@@ -305,6 +366,7 @@ export default function ExamPage() {
           onClose={() => setOpenFilter(false)}
           filter={filter}
           setFilter={setFilter}
+          classId={classId}
         />
         <ImportExamExcelModal
           open={openImportExcel}

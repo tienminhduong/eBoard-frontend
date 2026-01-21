@@ -1,21 +1,44 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Modal from "@/components/ui/Modal";
 import Button from "../ui/Button";
+import { subjectService } from "@/services/subjectService";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   filter: any;
   setFilter: (val: any) => void;
+  classId: string;
 }
+
+type SubjectOption = {
+  id: string;
+  name: string;
+};
 
 export default function ExamFilterModal({
   open,
   onClose,
   filter,
   setFilter,
+  classId,
 }: Props) {
+  const [subjects, setSubjects] = useState<SubjectOption[]>([]);
+
+  /* =======================
+     Load subject từ API
+     ======================= */
+  useEffect(() => {
+    if (!open) return;
+
+    subjectService
+      .getByClass(classId)
+      .then((res) => setSubjects(res.data))
+      .catch(console.error);
+  }, [open, classId]);
+
   return (
     <Modal
       open={open}
@@ -31,18 +54,20 @@ export default function ExamFilterModal({
           </label>
           <select
             className="w-full border rounded-lg p-2"
-            value={filter.subject || ""}
+            value={filter.subjectId || ""}
             onChange={(e) =>
               setFilter((f: any) => ({
                 ...f,
-                subject: e.target.value || undefined,
+                subjectId: e.target.value || undefined,
               }))
             }
           >
             <option value="">Tất cả môn</option>
-            <option value="Toán">Toán</option>
-            <option value="Tiếng Việt">Tiếng Việt</option>
-            <option value="Tiếng Anh">Tiếng Anh</option>
+            {subjects.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
           </select>
         </div>
 

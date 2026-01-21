@@ -1,12 +1,12 @@
-export type Subject = "Toán" | "Tiếng Việt" | "Tiếng Anh" | "Khoa học";
-
 export type ExamType = "Giữa kỳ" | "Cuối kỳ";
 
-export interface ExamSchedule {
+export type ExamSchedule = {
   id: string;
-  subject: Subject;
-  type: ExamType;
-  date: string;        // 2025-11-24
-  time: string;        // 08:00
-  content: string;     // Chương 1, 2
-}
+  subjectId: string;
+  subjectName: string;
+  type: string;          // examFormat
+  date: string;          // yyyy-MM-dd
+  time: string;          // HH:mm
+  location?: string;
+  notes?: string;
+};

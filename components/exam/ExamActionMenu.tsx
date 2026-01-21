@@ -1,17 +1,15 @@
 "use client";
 
-import { MoreVertical } from "lucide-react";
+import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 interface Props {
   onEdit: () => void;
-  onClone: () => void;
   onDelete: () => void;
 }
 
 export default function ExamActionMenu({
   onEdit,
-  onClone,
   onDelete,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -40,40 +38,29 @@ export default function ExamActionMenu({
       />
 
       {open && (
-        <div className="absolute right-0 top-6 z-50 w-40 rounded-xl bg-white border shadow-lg text-sm">
+        <div className="absolute right-2 top-8 z-50 w-36 rounded-lg bg-white shadow-lg border text-black">
           <button
-            className="w-full px-3 py-2 text-left hover:bg-gray-50"
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100"
             onClick={(e) => {
               e.stopPropagation();
               onEdit();
               setOpen(false);
             }}
           >
-            ✏️ Chỉnh sửa
+            <Pencil size={14} />
+            Chỉnh sửa
           </button>
 
           <button
-            className="w-full px-3 py-2 text-left hover:bg-gray-50"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClone();
-              setOpen(false);
-            }}
-          >
-            📋 Nhân bản
-          </button>
-
-          <div className="h-px bg-gray-100 my-1" />
-
-          <button
-            className="w-full px-3 py-2 text-left text-red-600 hover:bg-red-50"
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
               setOpen(false);
             }}
           >
-            🗑️ Xoá
+            <Trash2 size={14} />
+            Xoá
           </button>
         </div>
       )}

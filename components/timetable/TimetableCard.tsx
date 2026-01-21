@@ -46,7 +46,7 @@ export default function TimetableCard({
     >
       <div className="flex justify-between items-start">
         <span
-          className="font-bold text-lg"
+          className="font-bold text-base"
           style={{ color: color.text }}
         >
           {item.subject}
@@ -59,12 +59,21 @@ export default function TimetableCard({
             setOpenMenu(!openMenu);
           }}
         >
-          <MoreVertical size={16} style={{ color: color.text }} />
+          <MoreVertical size={16} className="cursor-pointer text-gray-500 hover:text-gray-700" />
         </button>
       </div>
 
-      <p className="text-sm font-medium text-gray-700">
-        GV: {item.teacher?.trim() || "Chưa có thông tin"}
+      <p className="text-sm text-gray-700">
+        <span className="font-medium">GV:</span>{" "}
+        {item.teacher?.trim() ? (
+          <span className="font-medium text-gray-700">
+            {item.teacher}
+          </span>
+        ) : (
+          <span className="font-normal text-gray-400 italic">
+            Chưa có thông tin
+          </span>
+        )}
       </p>
 
       {item.content && (

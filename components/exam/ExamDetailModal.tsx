@@ -1,64 +1,104 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import { FormField } from "../ui/FormField";
 import Input from "../ui/inputType/Input";
 import Textarea from "../ui/inputType/TextArea";
-import Select from "../ui/inputType/Select";
-import { ExamSchedule, ExamType, Subject } from "@/types/exam";
-import { useState, useEffect } from "react";
+import Select, { Option } from "../ui/inputType/Select";
+import { ExamSchedule, ExamType } from "@/types/exam";
 import { examService } from "@/services/examService";
+import { subjectService } from "@/services/subjectService";
 
 interface Props {
   open: boolean;
   exam: ExamSchedule;
+  classId: string;
   onClose: () => void;
+  onUpdated?: () => void;
 }
 
-const SUBJECT_OPTIONS = [
-  { value: "Toán", label: "Toán" },
-  { value: "Tiếng Việt", label: "Tiếng Việt" },
-  { value: "Tiếng Anh", label: "Tiếng Anh" },
-  { value: "Khoa học", label: "Khoa học" },
-];
-
-const EXAM_TYPE_OPTIONS = [
+const EXAM_TYPE_OPTIONS: Option<string>[] = [
   { value: "Giữa kỳ", label: "Giữa kỳ" },
   { value: "Cuối kỳ", label: "Cuối kỳ" },
 ];
 
-export default function ExamDetailModal({ open, exam, onClose }: Props) {
-  const [subject, setSubject] = useState<Subject | undefined>(exam.subject);
-  const [examType, setExamType] = useState<ExamType | undefined>(exam.type);
+export default function ExamDetailModal({
+  open,
+  exam,
+  classId,
+  onClose,
+  onUpdated,
+}: Props) {
+  const [subjectId, setSubjectId] = useState<string>("");
+  const [examFormat, setExamFormat] = useState<ExamType | "">("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
-  const [note, setNote] = useState("");
+  const [location, setLocation] = useState("");
+  const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [subjectOptions, setSubjectOptions] = useState<Option<string>[]>([]);
+
+  /* =======================
+     Load subject theo lớp
+     ======================= */
   useEffect(() => {
-    if (exam) {
-      setSubject(exam.subject);
-      setExamType(exam.type);
-      setDate(exam.date);
-      setTime(exam.time);
-      setNote(exam.content || "");
-    }
+    if (!open || !classId) return;
+
+    subjectService
+      .getByClass(classId)
+      .then((res) => {
+        setSubjectOptions(
+          res.data.map((s: any) => ({
+            value: s.id,
+            label: s.name,
+          }))
+        );
+      })
+      .catch(console.error);
+  }, [open, classId]);
+
+  /* =======================
+     Load exam data
+     ======================= */
+  useEffect(() => {
+    if (!exam) return;
+
+    setSubjectId(exam.subjectId);
+    setExamFormat(exam.type as ExamType);
+    setDate(exam.date);
+    setTime(exam.time);
+    setLocation(exam.location || "");
+    setNotes(exam.notes || "");
   }, [exam]);
 
   if (!exam) return null;
 
+  /* =======================
+     Submit update
+     ======================= */
   const handleSave = async () => {
+    if (!subjectId || !examFormat || !date || !time) return;
+
     setLoading(true);
     try {
+      const startTime = `${date}T${time}:00Z`;
+
       await examService.updateExam(exam.id, {
-        subject,
-        type: examType,
-        date,
-        time,
-        content: note,
+        subjectId,
+        examFormat,
+        location,
+        startTime,
+        notes,
       });
+
+      onUpdated?.();
       onClose();
+      alert("Cập nhật lịch thi thành công");
+    } catch (err: any) {
+      alert(err.message || "Cập nhật lịch thi thất bại");
     } finally {
       setLoading(false);
     }
@@ -75,19 +115,25 @@ export default function ExamDetailModal({ open, exam, onClose }: Props) {
         {/* Môn học */}
         <FormField label="Môn học" required>
           <Select
-            options={SUBJECT_OPTIONS}
-            value={subject}
-            onChange={(value) => setSubject(value as Subject)}
+            options={subjectOptions}
+            value={
+              subjectOptions.find((o) => o.value === subjectId)
+                ? subjectId
+                : ""
+            }
+            onChange={(v) => setSubjectId(v as string)}
+            placeholder="Chọn môn học"
             allowCreate
           />
         </FormField>
 
-        {/* Hình thức */}
+        {/* Hình thức thi */}
         <FormField label="Hình thức thi" required>
           <Select
             options={EXAM_TYPE_OPTIONS}
-            value={examType}
-            onChange={(value) => setExamType(value as ExamType)}
+            value={examFormat}
+            onChange={(v) => setExamFormat(v as ExamType)}
+            placeholder="Chọn hình thức thi"
           />
         </FormField>
 
@@ -102,12 +148,22 @@ export default function ExamDetailModal({ open, exam, onClose }: Props) {
           </FormField>
         </div>
 
+        {/* Địa điểm */}
+        <FormField label="Địa điểm">
+          <Input
+            placeholder="Phòng / địa điểm thi"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+          />
+        </FormField>
+
         {/* Ghi chú */}
         <FormField label="Ghi chú">
           <Textarea
             rows={3}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
+            placeholder="Nhập ghi chú..."
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
           />
         </FormField>
 
@@ -116,12 +172,7 @@ export default function ExamDetailModal({ open, exam, onClose }: Props) {
           <Button variant="ghost" onClick={onClose}>
             Hủy
           </Button>
-
-          <Button
-            variant="primary"
-            onClick={handleSave}
-            disabled={loading}
-          >
+          <Button variant="primary" onClick={handleSave} disabled={loading}>
             Lưu thay đổi
           </Button>
         </div>
