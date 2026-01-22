@@ -8,10 +8,9 @@ import { FormField } from "@/components/ui/FormField";
 import Input from "@/components/ui/inputType/Input";
 
 import { teacherService } from "@/services/teacherService";
-import { tokenStorage } from "@/services/tokenStorage";
-import { decodeJwt } from "@/utils/jwt";
 
 import type { TeacherInfo } from "@/types/teacher";
+import { teacherSession } from "@/services/teacherSession";
 
 const PRIMARY = "#518581";
 
@@ -44,24 +43,6 @@ function buildMergedPayload(
   return payload;
 }
 
-function extractTeacherIdFromAccessToken(): string | null {
-  const token = tokenStorage.getAccessToken();
-  if (!token) return null;
-
-  try {
-    const payload: any = decodeJwt(token);
-    const id =
-      payload?.id ||
-      payload?.sub ||
-      payload?.teacherId ||
-      payload?.["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
-
-    return typeof id === "string" && id.trim() ? id : null;
-  } catch {
-    return null;
-  }
-}
-
 export default function SettingsPage() {
   const [teacherId, setTeacherId] = useState<string | null>(null);
 
@@ -92,11 +73,10 @@ export default function SettingsPage() {
     qualifications: false,
   });
 
-  // ✅ lấy teacherId từ JWT (đăng nhập)
+  // lấy teacherId từ localStorage
   useEffect(() => {
-    const id = extractTeacherIdFromAccessToken();
+    const id = teacherSession.getTeacherId(); // lấy từ localStorage
     if (!id) {
-      // chưa login -> về login
       window.location.href = "/login";
       return;
     }

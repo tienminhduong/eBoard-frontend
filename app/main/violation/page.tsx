@@ -16,6 +16,8 @@ import { Violation, ViolationLevelNumber, ViolationStats } from "@/types/violati
 import AddViolationModal from "@/components/violation/AddViolationModal";
 import { violationService } from "@/services/violationService";
 import ViolationDetailModal from "@/components/violation/ViolationDetailModal";
+import { useRouter } from "next/navigation";
+import { teacherSession } from "@/services/teacherSession";
 
 const levelLabelMap: Record<ViolationLevelNumber, string> = {
   0: "Nhẹ",
@@ -37,6 +39,8 @@ const formatDate = (d: Date) => {
 };
 
 export default function ViolationPage() {
+  const router = useRouter();
+  const [classId, setClassId] = useState<string | null>(null);
   const [data, setData] = useState<Violation[]>([]);
   const [studentKeyword, setStudentKeyword] = useState("");
   const [classKeyword, setClassKeyword] = useState("");
@@ -54,14 +58,25 @@ export default function ViolationPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
 
-  const classId = localStorage.getItem("selectedClassId");
-  
-  if (!classId) {
-    // xử lý khi chưa chọn lớp
-    return;
-  }
+  useEffect(() => {
+    const teacherId = teacherSession.getTeacherId();
 
-  const fetchStats = async () => {
+    if (!teacherId) {
+      router.replace("/");
+      return;
+    }
+
+    const saved = localStorage.getItem(`selectedClassId_${teacherId}`);
+
+    if (!saved) {
+      router.replace("/main/my-classes");
+      return;
+    }
+
+    setClassId(saved);
+  }, [router]);
+
+  const fetchStats = async (classId: string) => {
     try {
       const now = new Date();
       const day = now.getDay(); // 0 = CN
@@ -83,7 +98,7 @@ export default function ViolationPage() {
     }
   };
 
-  const fetchViolations = async () => {
+  const fetchViolations = async (classId: string) => {
     try {
       setLoading(true);
       setError("");
@@ -101,9 +116,10 @@ export default function ViolationPage() {
   };
 
   useEffect(() => {
-    fetchViolations();
-    fetchStats();
-  }, []);
+    if (!classId) return;
+    fetchViolations(classId);
+    fetchStats(classId);
+  }, [classId]);
 
   const filteredData = useMemo(() => {
     return data.filter((v) => {
@@ -126,6 +142,10 @@ export default function ViolationPage() {
       return true;
     });
   }, [data, studentKeyword, classKeyword, typeKeyword]);
+
+  if (!classId) {
+    return <div className="p-6 text-gray-500">Đang tải lớp đã chọn...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -203,7 +223,7 @@ export default function ViolationPage() {
 
         {/* Action row */}
         <div className="flex justify-between items-center">
-          <Button icon={List} variant="primary" onClick={fetchViolations}>
+          <Button icon={List} variant="primary" onClick={() => fetchViolations(classId)}>
             Danh sách
           </Button>
 
@@ -223,8 +243,8 @@ export default function ViolationPage() {
         onClose={() => setOpenAdd(false)}
         onCreated={() => {
           setOpenAdd(false);
-          fetchViolations(); // reload list sau khi tạo xong
-          fetchStats();
+          fetchViolations(classId);
+          fetchStats(classId);
         }}
       />
 
@@ -317,8 +337,8 @@ export default function ViolationPage() {
         violation={selectedViolation}
         classId={classId}
         onUpdated={() => {
-          fetchViolations();
-          fetchStats();
+          fetchViolations(classId);
+          fetchStats(classId);
         }}
       />
     </div>

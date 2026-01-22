@@ -11,9 +11,11 @@ import {
 import Button from "@/components/ui/Button";
 import { exportAttendanceExcel } from "@/utils/exportAttendanceExcel";
 import { FileDown, SaveIcon, PlusCircle, Bell } from "lucide-react";
+import { teacherSession } from "@/services/teacherSession";
+import { useRouter } from "next/navigation";
 
 export default function AttendancePage() {
-  const classId = "27f5cded-0c8a-4aa0-a099-718ac7434a3b";
+  const [classId, setClassId] = useState<string | null>(null);
   const today = new Date().toISOString().slice(0, 10);
 
   const [date, setDate] = useState(today);
@@ -40,13 +42,36 @@ export default function AttendancePage() {
 
   type AttendanceStatus = typeof STATUS_OPTIONS[number];
 
+  const router = useRouter();
+
+  useEffect(() => {
+    const teacherId = teacherSession.getTeacherId();
+
+    if (!teacherId) {
+      router.replace("/login");
+      return;
+    }
+
+    const selectedClassId = localStorage.getItem(
+      `selectedClassId_${teacherId}`
+    );
+
+    if (!selectedClassId) {
+      // chưa chọn lớp → quay về danh sách lớp
+      router.replace("/main/my-classes");
+      return;
+    }
+
+    setClassId(selectedClassId);
+  }, [router]);
+
   const toAttendanceStatus = (v?: string) =>
     STATUS_OPTIONS.includes(v as AttendanceStatus)
       ? (v as AttendanceStatus)
       : undefined;
 
-
   const loadPendingRequests = async () => {
+    if (!classId) return;
     setLoadingRequests(true);
     try {
       const res = await attendanceService.getPendingAbsentRequests(classId);
@@ -57,6 +82,7 @@ export default function AttendancePage() {
   };
 
   const loadRequests = async (tab: TabType) => {
+    if (!classId) return;
     setLoadingRequests(true);
     try {
       let res = [];
@@ -102,6 +128,7 @@ export default function AttendancePage() {
 
   /* ================= LOAD ================= */
   const load = async () => {
+    if (!classId) return;
     try {
       const res = await attendanceService.getByClassAndDate(classId, date);
 
@@ -133,14 +160,14 @@ export default function AttendancePage() {
     }
   };
 
-
-
   useEffect(() => {
+    if (!classId) return;
     load();
-  }, [date]);
+  }, [date, classId]);
 
   /* ================= CREATE ================= */
   const handleCreateAttendance = async () => {
+    if (!classId) return;
     const created = await attendanceService.createForDate({
       classId,
       date,
@@ -206,6 +233,7 @@ export default function AttendancePage() {
 
   /* ================= NOTIFY ================= */
   const handleNotifyAbsent = async () => {
+    if (!classId) return;
     if (!data) return;
 
     const absent = editing.filter(
@@ -221,6 +249,14 @@ export default function AttendancePage() {
 
   return (
     <div className="space-y-6">
+      {/* ===== TITLE ===== */}
+      <div>
+        <h2 className="text-xl font-semibold">Điểm danh</h2>
+        <p className="text-sm text-gray-400">
+          Quản lý và theo dõi điểm danh học sinh theo ngày
+        </p>
+      </div>
+      
       {/* ===== HEADER ===== */}
       <div className="flex justify-between items-center">
         <input

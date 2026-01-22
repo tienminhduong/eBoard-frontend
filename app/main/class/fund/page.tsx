@@ -20,10 +20,13 @@ import {
 } from "@/utils/exportFundExcel";
 import FundReport from "@/components/class/fund/FundReport";
 import FundReportPrintModal from "@/components/class/fund/FundReportPrintModal";
+import { useRouter } from "next/navigation";
+import { teacherSession } from "@/services/teacherSession";
 
 
 export default function FundPage() {
-  const classId = "fc23fd72-6527-47ed-97c5-5e320060f457"; 
+  const router = useRouter();
+  const [classId, setClassId] = useState<string | null>(null);
 
   const [classInfo, setClassInfo] = useState<ClassInfo>();
   const [fund, setFund] = useState<ClassFund>();
@@ -36,6 +39,24 @@ export default function FundPage() {
   const [openCreate, setOpenCreate] = useState(false);
   const [openCreateExpense, setOpenCreateExpense] = useState(false);
   const [openPrint, setOpenPrint] = useState(false);
+
+  useEffect(() => {
+    const teacherId = teacherSession.getTeacherId();
+
+    if (!teacherId) {
+      router.replace("/"); // hoặc /login
+      return;
+    }
+
+    const savedClassId = localStorage.getItem(`selectedClassId_${teacherId}`);
+
+    if (!savedClassId) {
+      router.replace("/main/my-classes"); // chưa chọn lớp
+      return;
+    }
+
+    setClassId(savedClassId);
+  }, [router]);
 
   const handleCreateIncome = () => {
     setOpenCreate(true);
@@ -69,26 +90,18 @@ export default function FundPage() {
   }
 };
 
-// MOCK DỮ LIỆU NGƯỜI DÙNG TỪ LOCAL STORAGE
   useEffect(() => {
-    const mockUser = {
-      id: "u_001",
-      fullName: "Nguyễn Văn A",
-      email: "a@gmail.com",
-      role: "teacher",
-    };
-  }, []);
-
-
-  useEffect(() => {
+    if (!classId) return;
     classService.getClassInfoById(classId).then(setClassInfo);
   }, [classId]);
 
   useEffect(() => {
+    if (!classId) return;
     fundService.getClassFund(classId).then(setFund);
   }, [classId]);
 
   useEffect(() => {
+    if (!classId) return;
     if (tab === "income") {
       fundService
         .getIncomes(classId, page)
@@ -114,10 +127,26 @@ export default function FundPage() {
     }
   }, [classId, tab, page]);
 
+  if (!classId) {
+    return (
+      <div className="p-6 text-gray-500">
+        Đang tải lớp đã chọn...
+      </div>
+    );
+  }
+
   if (!fund) return null;
 
   return (
     <div className="space-y-6">
+      {/* ===== TITLE ===== */}
+      <div>
+        <h2 className="text-xl font-semibold">Quỹ lớp</h2>
+        <p className="text-sm text-gray-400">
+          Quản lý thu chi, theo dõi số dư và lịch sử giao dịch của quỹ lớp
+        </p>
+      </div>
+
       <FundStats data={fund} />
 
       <div className="flex justify-between items-center">

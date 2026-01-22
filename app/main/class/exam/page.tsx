@@ -14,6 +14,8 @@ import ExamFilterModal from "@/components/exam/ExamFilterModal";
 import ImportExamExcelModal from "@/components/exam/ImportExamExcelModal";
 import { getWeekDays } from "@/utils/week";
 import ExamActionMenu from "@/components/exam/ExamActionMenu";
+import { useRouter } from "next/navigation";
+import { teacherSession } from "@/services/teacherSession";
 
 type ExamFilter = {
   subjectId?: string;
@@ -23,6 +25,9 @@ type ExamFilter = {
 };
 
 export default function ExamPage() {
+  const router = useRouter();
+  const [classId, setClassId] = useState<string | null>(null);
+  
   const [data, setData] = useState<ExamSchedule[]>([]);
   const [openAddModal, setOpenAddModal] = useState(false);
   const [selectedExam, setSelectedExam] = useState<ExamSchedule | null>(null);
@@ -33,12 +38,24 @@ export default function ExamPage() {
   const [weekBase, setWeekBase] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  const classId = localStorage.getItem("selectedClassId");
-  
-  if (!classId) {
-    // xử lý khi chưa chọn lớp
-    return;
-  }
+  // ===== Lấy classId từ localStorage theo teacherId =====
+  useEffect(() => {
+    const teacherId = teacherSession.getTeacherId();
+
+    if (!teacherId) {
+      router.replace("/"); // hoặc /login
+      return;
+    }
+
+    const saved = localStorage.getItem(`selectedClassId_${teacherId}`);
+
+    if (!saved) {
+      router.replace("/main/my-classes"); // chưa chọn lớp
+      return;
+    }
+
+    setClassId(saved);
+  }, [router]);
 
   // Mapping dữ liệu từ BE sang FE
   const mapExamFromBE = (e: any): ExamSchedule => {
@@ -56,8 +73,11 @@ export default function ExamPage() {
     };
   };
 
+  const days = getWeekDays(weekBase);
+
   // Lấy danh sách lịch thi
   const fetchExamSchedule = async () => {
+    if (!classId) return;
     try {
       const from = days[0].full + "T00:00:00Z";
       const to = days[days.length - 1].full + "T23:59:59Z";
@@ -77,10 +97,9 @@ export default function ExamPage() {
   };
 
   useEffect(() => {
+    if (!classId) return;
     fetchExamSchedule();
-  }, [weekBase, filter]);
-
-  const days = getWeekDays(weekBase);
+  }, [classId, weekBase, filter]);
 
   const onDeleteExam = async (exam: ExamSchedule) => {
     const ok = confirm(
@@ -107,6 +126,14 @@ export default function ExamPage() {
 
     return true;
   });
+
+  if (!classId) {
+    return (
+      <div className="p-6 text-gray-500">
+        Đang tải lớp đã chọn...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -271,7 +298,11 @@ export default function ExamPage() {
 
                 {/* Nếu CÓ lịch */}
                 {exams.map((exam) => {
-                  const color = subjectColor[exam.subjectName];
+                  const color =
+                    subjectColor[exam.subjectName] ?? {
+                      bg: "#F3F4F6",    // gray-100
+                      text: "#374151",  // gray-700
+                    };
 
                   return (
                     <div

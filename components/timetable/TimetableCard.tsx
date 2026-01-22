@@ -14,7 +14,11 @@ export default function TimetableCard({
   onEdit,
   onDelete,
 }: Props) {
-  const color = subjectColor[item.subject];
+  const color = 
+    subjectColor[item.subject] ?? {
+      bg: "#F3F4F6",    // gray-100
+      text: "#374151",  // gray-700
+  };
   const [openMenu, setOpenMenu] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 

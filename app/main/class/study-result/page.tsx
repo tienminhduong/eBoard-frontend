@@ -22,9 +22,12 @@ import { exportScoreBySubjectExcel } from "@/utils/exportScoreBySubjectExcel";
 import BatchStudentPrintModal from "@/components/class/score/BatchStudentPrintModal";
 import SingleScorePrintModal from "@/components/class/score/BatchStudentPrintModal";
 import ImportScoreExcelModal from "@/components/class/score/ImportScoreExcelModal";
+import { useRouter } from "next/navigation";
+import { teacherSession } from "@/services/teacherSession";
 
 export default function StudyResultPage() {
-  const classId = "27f5cded-0c8a-4aa0-a099-718ac7434a3b"; // 1A
+  const router = useRouter();
+  const [classId, setClassId] = useState<string | null>(null);
 
   const [semester, setSemester] = useState(1);
   const [studentId, setStudentId] = useState<"all" | string>("all");
@@ -44,12 +47,32 @@ export default function StudyResultPage() {
   const isPrintBySubject = studentId === "all" && subjectId !== "all";
   const isPrintSingleStudent = studentId !== "all";
 
+  useEffect(() => {
+    const teacherId = teacherSession.getTeacherId();
+
+    if (!teacherId) {
+      router.replace("/"); // hoặc "/login"
+      return;
+    }
+
+    const savedClassId = localStorage.getItem(`selectedClassId_${teacherId}`);
+
+    if (!savedClassId) {
+      router.replace("/main/my-classes"); // chưa chọn lớp → về Lớp của tôi
+      return;
+    }
+
+    setClassId(savedClassId);
+  }, [router]);
+
   /* ===== LOAD STATS ===== */
     useEffect(() => {
+      if (!classId) return;
         scoreService.getStats({ classId, semester }).then(setStats);
       }, [classId, semester]);
   
     useEffect(() => {
+      if (!classId) return;
       scoreService.getStudents(classId).then((data) => {
         setStudentList(
           data.map((s) => ({
@@ -123,6 +146,7 @@ export default function StudyResultPage() {
 
   /* ===== SUMMARY ===== */
   useEffect(() => {
+    if (!classId) return;
     if (studentId === "all") return;
 
     scoreService
@@ -156,8 +180,24 @@ const subjectName = selectedSubjectName;
   }
 };
 
+if (!classId) {
+  return (
+    <div className="p-6 text-gray-500">
+      Đang tải lớp đã chọn...
+    </div>
+  );
+}
+
   return (
     <div className="space-y-6">
+      {/* ===== TITLE ===== */}
+      <div>
+        <h2 className="text-xl font-semibold">Kết quả học tập</h2>
+        <p className="text-sm text-gray-400">
+          Theo dõi và quản lý điểm số, đánh giá học tập của học sinh trong lớp
+        </p>
+      </div>
+
       <ScoreStats stats={stats} />
 
       <ScoreFilters

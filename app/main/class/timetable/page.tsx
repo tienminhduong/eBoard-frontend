@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Button from "@/components/ui/Button";
 import TimetableSession from "@/components/timetable/TimetableSession";
 import { TimetableItem } from "@/types/timetable";
@@ -11,8 +11,11 @@ import TimetableDetailModal from "@/components/timetable/TimetableDetailModal";
 import TimetableSettingsModal from "@/components/timetable/TimetableSettingModal";
 import { useTimetablePeriods } from "@/hooks/useTimetablePeriods";
 import { TimetableSettings } from "@/types/timetableSettings";
+import { useRouter } from "next/navigation";
+import { teacherSession } from "@/services/teacherSession";
 
 export default function TimetablePage() {
+  const router = useRouter();
   const [data, setData] = useState<TimetableItem[]>([]);
   const [openAdd, setOpenAdd] = useState(false);
   const [selectedItem, setSelectedItem] = useState<TimetableItem | null>(null);
@@ -26,11 +29,24 @@ export default function TimetablePage() {
   }>();
 
   const [classId, setClassId] = useState<string | null>(null);
-  // lấy classId từ localStorage (chỉ chạy ở client)
+  
   useEffect(() => {
-    const id = localStorage.getItem("selectedClassId");
-    setClassId(id);
-  }, []);
+    const teacherId = teacherSession.getTeacherId();
+
+    if (!teacherId) {
+      router.replace("/"); // hoặc /login
+      return;
+    }
+
+    const saved = localStorage.getItem(`selectedClassId_${teacherId}`);
+
+    if (!saved) {
+      router.replace("/main/my-classes"); // chưa chọn lớp
+      return;
+    }
+
+    setClassId(saved);
+  }, [router]);
 
   const {
     morningPeriods,
@@ -62,11 +78,8 @@ export default function TimetablePage() {
   // chưa chọn lớp thì hiện thông báo đơn giản
   if (!classId) {
     return (
-      <div className="p-6 bg-white rounded-3xl border shadow-sm">
-        <h2 className="text-lg font-semibold">Chưa chọn lớp</h2>
-        <p className="text-sm text-gray-400">
-          Vui lòng chọn lớp trước khi xem thời khóa biểu.
-        </p>
+      <div className="p-6 text-gray-500">
+        Đang tải lớp đã chọn...
       </div>
     );
   }

@@ -23,7 +23,7 @@ export default function ClassLayout({ children }: { children: React.ReactNode })
 
     const classId = localStorage.getItem(`selectedClassId_${teacherId}`);
     if (!classId) {
-      router.replace("/main/class"); // quay về danh sách lớp
+      router.replace("/main/my-classes"); // quay về danh sách lớp
       return;
     }
 
@@ -32,7 +32,7 @@ export default function ClassLayout({ children }: { children: React.ReactNode })
         const res = await classService.getClassById(classId);
         setCurrentClass(mapToClassItem(res));
       } catch {
-        router.replace("/main/class");
+        router.replace("/main/my-classes");
       } finally {
         setLoading(false);
       }
