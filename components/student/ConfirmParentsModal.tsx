@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import clsx from "clsx";
-import type { ImportedStudent } from "@/types/student";
+import type { ImportedStudent } from "@/types/Student";
 
 const PRIMARY = "#518581";
 

@@ -8,7 +8,7 @@ const PRIMARY = "#518581";
 
 export type ExportType = "students" | "parents" | "full";
 
-import type { StudentRow } from "@/types/student";
+import type { StudentRow } from "@/types/Student";
 
 
 type Props = {

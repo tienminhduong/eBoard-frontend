@@ -1,6 +1,6 @@
 "use client";
 
-import type { StudentRow } from "@/types/student";
+import type { StudentRow } from "@/types/Student";
 
 const PRIMARY = "#518581";
 
