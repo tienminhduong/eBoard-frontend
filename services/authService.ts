@@ -1,5 +1,6 @@
 import api from "@/lib/api";
 import type {
+  ApiResponse,
   ForgotPasswordRequest,
   ResetPasswordRequest,
   LoginResponseDto,
@@ -9,8 +10,17 @@ import type {
 
 export const authService = {
   async teacherLogin(payload: TeacherLoginRequest): Promise<LoginResponseDto> {
-    const res = await api.post("/auth/teacher/login", payload);
-    return res.data;
+    const res = await api.post<ApiResponse<LoginResponseDto>>(
+      "/auth/teacher/login",
+      payload
+    );
+
+    // BE bọc trong isSuccess/value/errorMessage
+    if (!res.data?.isSuccess || !res.data?.value) {
+      throw new Error(res.data?.errorMessage || "Đăng nhập thất bại");
+    }
+
+    return res.data.value; // chỉ trả { accessToken, refreshToken }
   },
 
   async registerTeacher(payload: RegisterTeacherRequest): Promise<void> {
@@ -23,7 +33,7 @@ export const authService = {
     return res.data;
   },
 
-  // ✅ BE chỉ cần token + newPassword + confirmPassword
+  // BE chỉ cần token + newPassword + confirmPassword
   async resetPassword(payload: ResetPasswordRequest): Promise<string> {
     const res = await api.post("/auth/reset-password", payload);
     return res.data;

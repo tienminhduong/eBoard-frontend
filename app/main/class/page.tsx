@@ -12,6 +12,7 @@ import ClassDetailModal from "@/components/class/ClassDetailModal";
 
 import { tokenStorage } from "@/services/tokenStorage";
 import { decodeJwt } from "@/utils/jwt";
+import { teacherSession } from "@/services/teacherSession";
 
 const PRIMARY = "#518581";
 const SELECTED_CLASS_ID_KEY = "selectedClassId";
@@ -23,6 +24,7 @@ function extractTeacherIdFromAccessToken(): string | null {
   try {
     const payload: any = decodeJwt(token);
     const id =
+      payload?.user_id ||
       payload?.id ||
       payload?.sub ||
       payload?.teacherId ||
@@ -59,7 +61,7 @@ export default function MyClassesPage() {
         setError("");
 
         // lấy teacherId từ token đăng nhập
-        const teacherId = extractTeacherIdFromAccessToken();
+        const teacherId = teacherSession.getTeacherId();
         if (!teacherId) {
           router.replace("/login");
           return;

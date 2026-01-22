@@ -77,8 +77,6 @@ export default function FundPage() {
       email: "a@gmail.com",
       role: "teacher",
     };
-
-    localStorage.setItem("currentUser", JSON.stringify(mockUser));
   }, []);
 
 

@@ -20,7 +20,10 @@ import { tokenStorage } from "@/services/tokenStorage";
 import { decodeJwt } from "@/utils/jwt";
 
 const PRIMARY = "#518581";
-const SELECTED_CLASS_ID_KEY = "selectedClassId";
+
+function getSelectedClassKey(teacherId: string) {
+  return `selectedClassId_${teacherId}`;
+}
 
 const initialForm: CreateClassForm = {
   name: "",
@@ -42,6 +45,7 @@ function extractTeacherIdFromAccessToken(): string | null {
     const payload: any = decodeJwt(token);
 
     const id =
+      payload?.user_id ||
       payload?.id ||
       payload?.sub ||
       payload?.teacherId ||
@@ -120,15 +124,10 @@ export default function CreateClassPage() {
     setForm(initialForm);
   }
 
-  function saveSelectedClassId(id: string) {
+  function saveSelectedClassId(teacherId: string, classId: string) {
     try {
-      localStorage.setItem(SELECTED_CLASS_ID_KEY, id);
+      localStorage.setItem(getSelectedClassKey(teacherId), classId);
     } catch {}
-  }
-
-  function fakeGuid() {
-    // tạm tạo id để UI hoạt động (vì BE đang không trả id)
-    return `cls_${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 
   function validate() {
@@ -173,23 +172,16 @@ export default function CreateClassPage() {
       // POST /api/classes?teacherId=...
       await classService.createClass(teacherId, payload);
 
-      // ✅ do BE không trả classId => tạm gán fake id để lưu selectedClassId nếu muốn
-      const classId = fakeGuid();
+      // gọi lại danh sách lớp của teacher
+      const classes = await classService.getTeachingClasses(teacherId);
 
-      const createdObj: CreatedClass = {
-        id: classId,
-        name: payload.name,
-        gradeId: payload.gradeId,
-        teacherId,
-        roomName: payload.roomName,
-        startDate: payload.startDate,
-        endDate: payload.endDate,
-        currentStudentCount: 0,
-        maxCapacity: payload.maxCapacity,
-        classDescription: payload.description,
-      };
+      // tìm lớp vừa tạo theo name + room + startDate (hoặc sort newest)
+      const newest = classes?.[0]; // nếu API trả theo createdAt desc
+      if (!newest?.id) throw new Error("Không lấy được id lớp vừa tạo");
 
-      setCreatedClass(createdObj);
+      saveSelectedClassId(teacherId, newest.id);
+
+      setCreatedClass(newest);
       setCreated(true);
     } catch (e: any) {
       setCreateError(e?.message ?? "Tạo lớp học thất bại.");
@@ -199,7 +191,9 @@ export default function CreateClassPage() {
   }
 
   function handleViewClass() {
-    if (createdClass?.id) saveSelectedClassId(createdClass.id);
+    if (teacherId && createdClass?.id) {
+      saveSelectedClassId(teacherId, createdClass.id);
+    }
     router.push("/main/class");
   }
 

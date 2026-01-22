@@ -1,11 +1,13 @@
 // src/services/teacherSession.ts
-
 const KEY = "teacherId";
 
 function getStorage() {
   if (typeof window === "undefined") return null;
-  // ưu tiên localStorage, nếu không có thì sessionStorage
-  return window.localStorage.getItem(KEY) ? window.localStorage : window.sessionStorage;
+
+  if (window.localStorage.getItem(KEY)) return window.localStorage;
+  if (window.sessionStorage.getItem(KEY)) return window.sessionStorage;
+
+  return null;
 }
 
 export const teacherSession = {
@@ -20,11 +22,8 @@ export const teacherSession = {
     if (!store) return null;
     return store.getItem(KEY);
   },
-clear() {
-    localStorage.removeItem("teacherId");
-  },
 
-  clear1() {
+  clear() {
     if (typeof window === "undefined") return;
     window.localStorage.removeItem(KEY);
     window.sessionStorage.removeItem(KEY);

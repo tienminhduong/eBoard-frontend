@@ -46,7 +46,8 @@ export default function LoginPage() {
 
       // 3️⃣ Decode JWT để lấy teacherId
       const payload = decodeJwt(tokens.accessToken);
-      const teacherId = payload?.sub || payload?.nameid;
+
+      const teacherId = payload?.user_id;
 
       if (teacherId) {
         teacherSession.setTeacherId(teacherId, remember);

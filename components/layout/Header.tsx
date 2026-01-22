@@ -56,8 +56,22 @@ export default function Header() {
   }, []);
 
   function handleLogout() {
+    const tid = teacherSession.getTeacherId();
+
+    // clear auth
     tokenStorage.clear();
-    teacherSession.clear?.(); // nếu có, còn không thì bỏ
+    teacherSession.clear();
+
+    // xoá selectedClassId của đúng teacher
+    if (tid) localStorage.removeItem(`selectedClassId_${tid}`);
+
+    // clear user context (nhớ lớp cũ)
+    localStorage.removeItem("selectedClassId");
+    localStorage.removeItem("currentUser");
+
+    // nếu bạn có lưu ở sessionStorage ở chỗ nào đó thì xoá luôn cho chắc
+    sessionStorage.removeItem("selectedClassId");
+
     router.replace("/");
   }
 

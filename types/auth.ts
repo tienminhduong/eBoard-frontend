@@ -25,3 +25,9 @@ export type TeacherLoginRequest = {
   email: string;
   password: string;
 };
+
+export type ApiResponse<T> = {
+  isSuccess: boolean;
+  value: T | null;
+  errorMessage: string | null;
+};
