@@ -89,21 +89,34 @@ export default function StudyResultPage() {
 
       return;
     }
-
-
-    // ===== Theo học sinh =====
+    // ===== Theo học sinh (MERGE MÔN + ĐIỂM) =====
     if (studentId !== "all") {
-      scoreService
-        .getSubjectScores({ classId, semester, studentId })
-        .then(setSubjectScores)
-        .catch(err => {
-          // 404 = chưa có bảng điểm → hợp lệ
-          if (err.response?.status === 404) {
-            setSubjectScores([]);
-            return;
-          }
-          throw err;
-        });
+      Promise.all([
+        scoreService.getSubjects(classId), // luôn đủ môn
+        scoreService
+          .getSubjectScores({ classId, semester, studentId })
+          .catch(() => []), // chưa có điểm → mảng rỗng
+      ])
+        .then(([subjects, scores]) => {
+          const scoreMap = new Map(
+            scores.map((s) => [s.subjectId, s])
+          );
+
+          const merged: SubjectScore[] = subjects.map((subj) => {
+            const found = scoreMap.get(subj.id);
+
+            return {
+              subjectId: subj.id,
+              subjectName: subj.name,
+              midTermScore: found?.midTermScore ?? null,
+              finalTermScore: found?.finalTermScore ?? null,
+              averageScore: found?.averageScore ?? null,
+            };
+          });
+
+          setSubjectScores(merged);
+        })
+        .catch(console.error);
     }
   }, [classId, semester, studentId, subjectId]);
 
@@ -173,7 +186,6 @@ const subjectName = selectedSubjectName;
           open={openImportExcel}
           onClose={() => setOpenImportExcel(false)}
           classId={classId}
-          className={className}
           subjectId={subjectId as string}
           subjectName={subjectName}
           semester={semester}

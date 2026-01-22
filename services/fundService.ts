@@ -5,6 +5,7 @@ import {
   FundExpense,
   FundIncomeStudent,
   FundIncomeDetailDto,
+  UpdateFundIncomePayload,
 } from "@/types/fund";
 
 /* ===== DTO TYPES ===== */
@@ -70,7 +71,7 @@ export const fundService = {
     contributedAt: string;
     notes?: string;
   }) {
-    return api.put(`/funds/income/details/${detailId}`, payload);
+    return api.put(`/funds/income-details/${detailId}`, payload);
   },
 
   getIncomeByStudent(studentId: string) {
@@ -78,6 +79,44 @@ export const fundService = {
       .get(`/funds/income/${studentId}`)
       .then(res => res.data);
   },
+
+  getIncomeById(fundIncomeId: string) {
+  return api
+    .get<FundIncome>(`/funds/incomes/${fundIncomeId}`)
+    .then(res => res.data);
+},
+
+updateIncome(fundIncomeId: string, payload: UpdateFundIncomePayload) {
+  return api.put(`/funds/incomes/${fundIncomeId}`, payload);
+},
+
+getIncomeDetailById(detailId: string) {
+  return api
+    .get<FundIncomeDetailDto>(`/funds/income/${detailId}/details`)
+    .then(res => ({
+      id: res.data.id,
+      content: res.data.contributedInfo,
+      amount: res.data.contributedAmount,
+      contributedAt: res.data.contributedAt,
+      notes: res.data.notes,
+    }));
+},
+
+getIncomeDetailsByClassAndStudent(classId: string, studentId: string) {
+  return api
+    .get<FundIncomeDetailDto[]>(
+      `/funds/classes/${classId}/students/${studentId}/income-details`
+    )
+    .then(res =>
+      res.data.map(i => ({
+        id: i.id,
+        content: i.contributedInfo,
+        amount: i.contributedAmount,
+        contributedAt: i.contributedAt,
+        notes: i.notes,
+      }))
+    );
+},
 
   /* ===== EXPENSE ===== */
   getExpenses(classId: string, page = 1, pageSize = 20) {
@@ -114,5 +153,22 @@ export const fundService = {
       })
       .then(res => res.data); // => { url: string }
   },
+
+  getExpenseById(expenseId: string) {
+    return api
+      .get<FundExpense>(`/funds/expenses/${expenseId}`)
+      .then(res => res.data);
+  },
+
+  updateExpense(expenseId: string, payload: {
+    title: string;
+    amount: number;
+    spenderName: string;
+    expenseDate: string;
+    notes?: string;
+  }) {
+    return api.put(`/funds/expenses/${expenseId}`, payload);
+  },
+
 
 };

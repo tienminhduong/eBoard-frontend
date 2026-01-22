@@ -20,29 +20,45 @@ export default function ScoreDetailModal({
   semester,
   studentId,
 }: Props) {
-  const [data, setSubjectScores] = useState<SubjectScore[]>([]);
+  const [data, setScores] = useState<SubjectScore[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-  if (!open || !studentId) return;
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const res = await scoreService.getSubjectScores({
-        classId,
-        semester,
-        studentId,
+    if (!studentId) return;
+
+    setLoading(true);
+
+    Promise.all([
+      scoreService.getSubjects(classId), // ✅ luôn đủ môn
+      scoreService
+        .getSubjectScores({
+          classId,
+          studentId,
+          semester,
+        })
+        .catch(() => []), // HS chưa có điểm
+    ])
+      .then(([subjects, subjectScores]) => {
+        const scoreMap = new Map(
+          subjectScores.map((s) => [s.subjectId, s])
+        );
+
+        const merged = subjects.map((subj) => {
+          const found = scoreMap.get(subj.id);
+
+          return {
+            subjectId: subj.id,
+            subjectName: subj.name,
+            midTermScore: found?.midTermScore ?? null,
+            finalTermScore: found?.finalTermScore ?? null,
+            averageScore: found?.averageScore ?? null,
+          };
+        });
+
+        setScores(merged);
       })
-      setSubjectScores(res);
-    } catch (e) {
-      console.error(e);
-      setSubjectScores([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-    fetchData();
-    }, [open, studentId, classId, semester]);                                                                   
+      .finally(() => setLoading(false));
+  }, [studentId, classId, semester]);
 
 
   return (

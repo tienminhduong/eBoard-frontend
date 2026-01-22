@@ -2,10 +2,7 @@ import { tokenStorage } from "@/services/tokenStorage";
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:5102/api",
-  headers: {
-    "Content-Type": "application/json",
-  },
+  baseURL: "/api",
 });
 
 //try catch cho axios ở các request
@@ -18,9 +15,12 @@ api.interceptors.response.use(
       err.response?.data ||
       err.message ||
       "Unknown error";
-    return Promise.reject(new Error(message));
+
+    err.message = message; // ✅ giữ nguyên AxiosError
+    return Promise.reject(err);
   }
 );
+
 
 api.interceptors.request.use(config => {
   const token = tokenStorage.getAccessToken();

@@ -6,7 +6,7 @@ const nextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:5102/api/:path*",
+        destination: "https://eboardapi-hsabeadsb2a8anb3.southeastasia-01.azurewebsites.net/api/:path*",
       },
     ];
   },

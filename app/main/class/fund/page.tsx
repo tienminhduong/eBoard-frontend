@@ -83,7 +83,7 @@ export default function FundPage() {
 
 
   useEffect(() => {
-    classService.getClassById(classId).then(setClassInfo);
+    classService.getClassInfoById(classId).then(setClassInfo);
   }, [classId]);
 
   useEffect(() => {

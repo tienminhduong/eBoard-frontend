@@ -105,15 +105,18 @@ export default function FundIncomeHistoryModal({
             onClose={() => setEditingItem(null)}
             onSubmit={payload => {
               // 👉 CALL API UPDATE Ở ĐÂY
-              console.log("Update payload:", payload);
-
+              fundService.updateIncomeDetail(payload.id, {
+                contributedAmount: payload.contributedAmount,
+                contributedAt: payload.contributedAt,
+                notes: payload.notes,
+              });
               // demo update local
               setData(prev =>
                 prev.map(i =>
                   i.id === payload.id
                     ? {
                         ...i,
-                        amount: payload.amount,
+                        amount: payload.contributedAmount,
                         contributedAt: payload.contributedAt,
                         notes: payload.notes,
                       }

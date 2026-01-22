@@ -45,49 +45,35 @@ export default function ScoreInputModal({
 
     setLoading(true);
 
-    scoreService
-      .getSubjectScores({
+    Promise.all([
+      scoreService.getSubjects(classId),
+      scoreService.getSubjectScores({
         classId,
         semester,
         studentId,
-      })
-      .then(async (data) => {
-        // ✅ ĐÃ CÓ BẢNG ĐIỂM
-        if (data.length > 0) {
-          setScores(data);
-          return;
-        }
-
-        // ❗ CHƯA CÓ → LOAD DANH SÁCH MÔN
-        const subjects = await scoreService.getSubjects(classId);
-
-        setScores(
-          subjects.map((s) => ({
-            subjectId: s.id,
-            subjectName: s.name,
-            midTermScore: null,
-            finalTermScore: null,
-            averageScore: null,
-          }))
+      }).catch(() => []), // nếu 404 → coi như chưa có điểm
+    ])
+      .then(([subjects, subjectScores]) => {
+        const scoreMap = new Map(
+          subjectScores.map((s) => [s.subjectId, s])
         );
-      })
-      .catch(async () => {
-        // ⚠️ TRƯỜNG HỢP BE TRẢ 404
-        const subjects = await scoreService.getSubjects(classId);
 
-        setScores(
-          subjects.map((s) => ({
-            subjectId: s.id,
-            subjectName: s.name,
-            midTermScore: null,
-            finalTermScore: null,
-            averageScore: null,
-          }))
-        );
+        const merged = subjects.map((subj) => {
+          const found = scoreMap.get(subj.id);
+
+          return {
+            subjectId: subj.id,
+            subjectName: subj.name,
+            midTermScore: found?.midTermScore ?? null,
+            finalTermScore: found?.finalTermScore ?? null,
+            averageScore: found?.averageScore ?? null,
+          };
+        });
+
+        setScores(merged);
       })
       .finally(() => setLoading(false));
   }, [studentId, classId, semester]);
-
 
   /* ===== LOAD STUDENT NAME (WHEN FIXED STUDENT) ===== */
   useEffect(() => {

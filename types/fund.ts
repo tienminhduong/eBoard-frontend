@@ -68,4 +68,11 @@ export interface FundIncomeDetailDto {
   notes: string;
 }
 
+export interface UpdateFundIncomePayload {
+  title?: string;
+  amountPerStudent?: number;
+  endDate?: string; // yyyy-MM-dd
+  description?: string;
+}
+
 

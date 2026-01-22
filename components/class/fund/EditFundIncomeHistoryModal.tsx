@@ -16,10 +16,11 @@ interface Props {
   };
   onSubmit: (payload: {
     id: string;
-    amount: number;
+    contributedAmount: number;
     contributedAt: string;
     notes?: string;
   }) => void;
+
 }
 
 export default function EditFundIncomeHistoryModal({
@@ -44,8 +45,8 @@ export default function EditFundIncomeHistoryModal({
   const handleSave = () => {
     onSubmit({
       id: item.id,
-      amount,
-      contributedAt: date,
+      contributedAmount: amount,      // ✅ map đúng BE
+      contributedAt: date,             // yyyy-MM-dd OK
       notes: notes.trim() || undefined,
     });
     onClose();

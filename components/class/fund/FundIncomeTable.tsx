@@ -7,6 +7,7 @@ import { Pencil, ChevronRight, Trash2 } from "lucide-react";
 import FundIncomeDetailModal from "./FundIncomeDetailModal";
 import { useState } from "react";
 import { ClassInfo } from "@/types/Class";
+import EditFundIncomeModal from "./EditFundIncomeModal";
 
 interface Props {
   data: FundIncome[];
@@ -31,6 +32,8 @@ export default function FundIncomeTable({
   const [openDetail, setOpenDetail] = useState(false);
   const [selectedIncomeId, setSelectedIncomeId] = useState<string>();
   const [selectedTitle, setSelectedTitle] = useState<string>("");
+  const [openEdit, setOpenEdit] = useState(false);
+  const [editId, setEditId] = useState<string>();
 
   return (
     <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -76,8 +79,14 @@ export default function FundIncomeTable({
                 <td>
                     <div className="flex justify-center gap-2">
                         {/* ===== EDIT ===== */}
-                        <Button icon={Pencil} onClick={() => onEdit?.(i.id)}>
-                        <span className="sr-only">Sửa</span>
+                        <Button
+                          icon={Pencil}
+                          onClick={() => {
+                            setEditId(i.id);
+                            setOpenEdit(true);
+                          }}
+                        >
+                          <span className="sr-only">Sửa</span>
                         </Button>
 
                         {/* ===== DETAIL ===== */}
@@ -93,7 +102,6 @@ export default function FundIncomeTable({
                         </Button>
                     </div>
                     </td>
-
               </tr>
             ))
           ) : (
@@ -121,6 +129,13 @@ export default function FundIncomeTable({
         fundIncomeId={selectedIncomeId}
         title={selectedTitle}
         classInfo={classInfo}
+      />
+
+      <EditFundIncomeModal
+        open={openEdit}
+        fundIncomeId={editId}
+        onClose={() => setOpenEdit(false)}
+        onSuccess={() => onPageChange(page)} // reload list
       />
 
       {/* ===== PAGINATION ===== */}

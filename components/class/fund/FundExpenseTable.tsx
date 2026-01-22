@@ -5,6 +5,8 @@ import Pagination from "@/components/ui/Pagination";
 import Button from "@/components/ui/Button";
 import { Pencil, ChevronRight } from "lucide-react";
 import { ClassInfo } from "@/types/Class";
+import { useState } from "react";
+import EditFundExpenseModal from "./EditFundExpenseModal";
 
 interface Props {
   data: FundExpense[];
@@ -23,6 +25,8 @@ export default function FundExpenseTable({
   onDetail,
 }: Props) {
   const hasData = data.length > 0;
+  const [openEdit, setOpenEdit] = useState(false);
+  const [editExpenseId, setEditExpenseId] = useState<string>();
 
   return (
     <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -57,7 +61,10 @@ export default function FundExpenseTable({
                     {/* EDIT */}
                     <Button
                       icon={Pencil}
-                      onClick={() => onEdit?.(e.id)}
+                      onClick={() => {
+                        setEditExpenseId(e.id);
+                        setOpenEdit(true);
+                      }}
                     >
                       <span className="sr-only">Sửa</span>
                     </Button>
@@ -66,7 +73,7 @@ export default function FundExpenseTable({
               </tr>
             ))
           ) : (
-            <tr>
+            <tr key="no-data">
               <td
                 colSpan={5}
                 className="h-32 text-center text-gray-400 bg-gray-50"
@@ -77,6 +84,14 @@ export default function FundExpenseTable({
           )}
         </tbody>
       </table>
+
+      <EditFundExpenseModal
+        open={openEdit}
+        expenseId={editExpenseId}
+        onClose={() => setOpenEdit(false)}
+        onSuccess={() => onPageChange(page)} // reload list
+      />
+
 
       {/* ===== PAGINATION ===== */}
       <Pagination page={page} totalPages={1} onChange={onPageChange} />

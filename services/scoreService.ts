@@ -95,17 +95,18 @@ export const scoreService = {
         `/score/${params.classId}/student/${params.studentId}/scores/${params.semester}`
       );
 
+      const sheet = res.data;
+
       return {
-        averageScore: res.data.averageScore,
-        grade: res.data.grade,
-        rank: res.data.rank,
+        averageScore: sheet.averageScore,
+        grade: sheet.grade,
+        rank: sheet.rank,
       };
     } catch (err: any) {
       if (err.response?.status === 404) {
-        // chưa có bảng điểm → hợp lệ
-        return null;
+        return null; // chưa có bảng điểm
       }
-      throw err; // lỗi khác thì vẫn throw
+      throw err;
     }
   },
 
