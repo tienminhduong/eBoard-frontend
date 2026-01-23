@@ -2,8 +2,6 @@
 import api from "@/lib/api";
 import { CreateStudentRequest, StudentInfoDto } from "@/types/Student";
 
-
-
 export type StudentOptionDto = {
   id: string;
   fullName: string;
@@ -11,8 +9,9 @@ export type StudentOptionDto = {
 
 export const studentService = {
   // POST /api/students
-  async createStudent(payload: CreateStudentRequest): Promise<void> {
-    await api.post("/students", payload);
+  async createStudent(payload: CreateStudentRequest): Promise<StudentInfoDto> {
+    const res = await api.post<StudentInfoDto>("/students", payload);
+    return res.data;
   },
 
   // GET /api/students/{id}

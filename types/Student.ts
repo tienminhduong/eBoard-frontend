@@ -1,4 +1,5 @@
 export type StudentRow = {
+  [x: string]: any;
   id: string;
   fullName: string;
   dob: string;
@@ -34,7 +35,6 @@ export type CreateStudentRequest = {
   parentPhoneNumber: string;
   relationshipWithParent: string;
   parentFullName: string;
-  parentHealthCondition: string;
   classId: string;
 };
 

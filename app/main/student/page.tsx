@@ -16,6 +16,8 @@ import type { StudentRow, ImportedStudent } from "@/types/Student";
 import { classService } from "@/services/classService";
 import { studentService } from "@/services/studentService";
 import { parentService } from "@/services/parentService";
+import { getFromStorage } from "@/utils/storage";
+
 
 import {
   SELECTED_CLASS_ID_KEY,
@@ -37,12 +39,24 @@ export default function StudentsPage() {
   const [className, setClassName] = useState("Lớp");
 
   useEffect(() => {
-    const cid = localStorage.getItem(SELECTED_CLASS_ID_KEY) || "";
-    const cname = localStorage.getItem(SELECTED_CLASS_NAME_KEY) || "Lớp";
-    setClassId(cid);
-    setClassName(cname);
-    setHydrated(true);
-  }, []);
+  const cid = getFromStorage(SELECTED_CLASS_ID_KEY);
+  const cname = getFromStorage(SELECTED_CLASS_NAME_KEY) || "Lớp";
+
+  console.log("STORAGE cid:", cid);
+  console.log("STORAGE cname:", cname);
+
+  setClassId(cid);
+  setClassName(cname);
+  setHydrated(true);
+}, []);
+
+useEffect(() => {
+  if (!hydrated) return;
+  console.log("STATE classId:", classId);
+}, [hydrated, classId]);
+
+
+  
 
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [q, setQ] = useState("");
@@ -81,29 +95,61 @@ export default function StudentsPage() {
   const [deleteError, setDeleteError] = useState("");
 
   async function loadStudents() {
-    if (!classId) {
-      setStudents([]);
-      setLoadError("Chưa chọn lớp. Hãy bấm 'Quản lý' từ trang Lớp của tôi trước.");
-      return;
-    }
+  console.log("CALL API with classId =", classId);
 
-    try {
-      setLoading(true);
-      setLoadError("");
-
-      const json = await classService.getStudentsByClassId(classId, pageNumber, pageSize);
-      const list = Array.isArray(json?.data) ? json.data : [];
-
-      const mapped: StudentRow[] = list.map(mapStudentFromList);
-
-      setStudents(mapped.filter((x) => x.id));
-    } catch (e: any) {
-      setLoadError(e?.message ?? "Không tải được danh sách học sinh.");
-      setStudents([]);
-    } finally {
-      setLoading(false);
-    }
+  if (!classId) {
+    setStudents([]);
+    setLoadError("Chưa chọn lớp. Hãy bấm 'Quản lý' từ trang Lớp của tôi trước.");
+    return;
   }
+
+  try {
+    setLoading(true);
+    setLoadError("");
+
+    const json = await classService.getStudentsByClassId(classId, pageNumber, pageSize);
+    const list = Array.isArray(json?.data) ? json.data : [];
+
+    const mapped: StudentRow[] = list.map(mapStudentFromList).filter((x: any) => x?.id);
+
+    // ✅ lấy unique parentId
+    const parentIds = Array.from(
+      new Set(mapped.map((s) => (s.parentId || "").trim()).filter(Boolean))
+    );
+
+    // ✅ gọi api lấy parent info theo parentId
+    const parentMap = new Map<string, any>();
+
+    await Promise.all(
+      parentIds.map(async (pid) => {
+        try {
+          const p = await parentService.getParentById(pid);
+          parentMap.set(pid, p);
+        } catch (err) {
+          // fail thì bỏ qua, vẫn render bảng
+          console.warn("Cannot load parent:", pid, err);
+        }
+      })
+    );
+
+    // ✅ nhét mật khẩu vào row
+    const enriched: StudentRow[] = mapped.map((s) => {
+      const p = parentMap.get(s.parentId);
+      const pwd =
+        (p?.generatedPassword ?? p?.password ?? s.password ?? "").toString();
+
+      return { ...s, password: pwd };
+    });
+
+    setStudents(enriched);
+  } catch (e: any) {
+    setLoadError(e?.message ?? "Không tải được danh sách học sinh.");
+    setStudents([]);
+  } finally {
+    setLoading(false);
+  }
+}
+
 
   useEffect(() => {
     if (!hydrated) return;
@@ -278,7 +324,7 @@ export default function StudentsPage() {
                   <th className="text-left text-sm font-semibold px-5 py-4 w-[210px]">Họ và tên PHHS</th>
                   <th className="text-left text-sm font-semibold px-5 py-4 w-[230px]">Email</th>
                   <th className="text-left text-sm font-semibold px-5 py-4 w-[190px]">SĐT / Tên đăng nhập</th>
-                  <th className="text-left text-sm font-semibold px-5 py-4 w-[140px]">Mật khẩu</th>
+                  <th className="text-left text-sm font-semibold px-5 py-4 w-[160px]">Mật khẩu tự động</th>
                   <th className="text-left text-sm font-semibold px-5 py-4 w-[140px]">Thao tác</th>
                 </tr>
               </thead>
@@ -465,8 +511,9 @@ export default function StudentsPage() {
         fullName: updated.parentName.trim(),
         email: updated.email.trim(),
         phoneNumber: updated.phone.trim(),
+        generatedPassword: updated.generatedPassword.trim(),
         address: updated.address.trim(), // hoặc parentAddress nếu mày có field riêng
-        healthCondition: "N/A",
+        
       });
 
       setDetailOpen(false);

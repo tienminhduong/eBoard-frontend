@@ -31,7 +31,10 @@ const RELATIONSHIP_OPTIONS: Option[] = [
   { value: "Khác", label: "Khác" },
 ];
 
+import { getFromStorage } from "@/utils/storage";
+
 const SELECTED_CLASS_ID_KEY = "selectedClassId";
+
 
 export default function AddStudentModal({ open, onClose, onSubmit, classId }: Props) {
   const [mounted, setMounted] = useState(false);
@@ -66,16 +69,19 @@ export default function AddStudentModal({ open, onClose, onSubmit, classId }: Pr
 
   // resolve classId SAFELY (client only)
   useEffect(() => {
-    if (!open) return;
+  if (!open) return;
 
-    if (classId?.trim()) {
-      setResolvedClassId(classId.trim());
-      return;
-    }
+  // ưu tiên props classId nếu có
+  if (classId?.trim()) {
+    setResolvedClassId(classId.trim());
+    return;
+  }
 
-    const stored = localStorage.getItem(SELECTED_CLASS_ID_KEY) || "";
-    setResolvedClassId(stored);
-  }, [open, classId]);
+  // fallback: lấy theo key/prefix selectedClassId_<teacherId>
+  const storedClassId = getFromStorage(SELECTED_CLASS_ID_KEY);
+  setResolvedClassId(storedClassId);
+}, [open, classId]);
+
 
   // load provinces when modal opens
   useEffect(() => {
@@ -211,7 +217,6 @@ export default function AddStudentModal({ open, onClose, onSubmit, classId }: Pr
       parentFullName: parentFullName.trim(),
       parentPhoneNumber: parentPhoneNumber.trim(),
       relationshipWithParent,
-      parentHealthCondition: parentHealthCondition.trim() || "N/A",
       classId: resolvedClassId,
     };
 
@@ -310,9 +315,6 @@ export default function AddStudentModal({ open, onClose, onSubmit, classId }: Pr
               />
             </FormField>
 
-            <FormField label="Tình trạng sức khỏe">
-              <Input value={parentHealthCondition} onChange={(e: any) => setParentHealthCondition(e.target.value)} />
-            </FormField>
           </div>
 
           {!resolvedClassId ? (
