@@ -2,7 +2,6 @@ export type UpdateParentInfoRequest = {
   fullName: string;
   email: string;
   phoneNumber: string;
-  generatedPassword: string;
   address: string;
   
 };

@@ -231,7 +231,6 @@ export default function StudentDetailModal({ open, student, onClose, onSave }: P
         email: parentEmail.trim(),
         phoneNumber: parentPhone.trim(),
         address: parentAddressFromStudent(updatedStudent.address),
-        healthCondition: "N/A", // StudentRow không có healthCondition, giữ default
       };
 
       if (!form.parentId?.trim()) throw new Error("Không tìm thấy parentId để cập nhật phụ huynh.");
