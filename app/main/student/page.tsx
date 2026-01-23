@@ -511,7 +511,6 @@ useEffect(() => {
         fullName: updated.parentName.trim(),
         email: updated.email.trim(),
         phoneNumber: updated.phone.trim(),
-        generatedPassword: updated.generatedPassword.trim(),
         address: updated.address.trim(), // hoặc parentAddress nếu mày có field riêng
         
       });
