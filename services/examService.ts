@@ -1,5 +1,5 @@
 import { ExamSchedule, ExamType } from "@/types/exam";
-import axios from "@/lib/api";
+import api from "@/lib/api";
 
 export const examService = {
   // Tạo lịch thi
@@ -10,7 +10,7 @@ export const examService = {
     location?: string;
     startTime: string;
     notes?: string;
-  }) => axios.post("/exams-schedule", data),
+  }) => api.post("/exams-schedule", data),
 
   // Lấy lịch thi theo lớp với các tham số lọc
   getByClass: (
@@ -22,7 +22,7 @@ export const examService = {
       examFormat?: string;
     }
   ) =>
-    axios.get(`/exams-schedule/classes/${classId}`, {
+    api.get(`/exams-schedule/classes/${classId}`, {
       params: {
         From: params?.from,
         To: params?.to,
@@ -42,11 +42,18 @@ export const examService = {
       notes?: string;
     }
   ) {
-    return axios.put(`/exams-schedule/${examScheduleId}`, payload);
+    return api.put(`/exams-schedule/${examScheduleId}`, payload);
   },
 
   // Xoá lịch thi
   deleteExam(id: string) {
-    return axios.delete(`/exams-schedule/${id}`);
+    return api.delete(`/exams-schedule/${id}`);
   },
+
+  // Lấy thống kê lịch thi theo lớp
+  getStatsByClass(classId: string) {
+    return api.get(
+      `/exams-schedule/classes/${classId}/stats`
+    );
+  }
 };

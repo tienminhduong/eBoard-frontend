@@ -123,7 +123,6 @@ export default function ExamDetailModal({
             }
             onChange={(v) => setSubjectId(v as string)}
             placeholder="Chọn môn học"
-            allowCreate
           />
         </FormField>
 

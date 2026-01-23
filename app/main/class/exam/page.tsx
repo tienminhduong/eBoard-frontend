@@ -37,6 +37,10 @@ export default function ExamPage() {
   const [openImportExcel, setOpenImportExcel] = useState(false);
   const [weekBase, setWeekBase] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [stats, setStats] = useState<{
+    examInMonth: number;
+    futureExam: number;
+  } | null>(null);
 
   // ===== Lấy classId từ localStorage theo teacherId =====
   useEffect(() => {
@@ -96,9 +100,22 @@ export default function ExamPage() {
     }
   };
 
+  const fetchExamStats = async () => {
+    if (!classId) return;
+
+    try {
+      const res = await examService.getStatsByClass(classId);
+      // response: { examInMonth: number, futureExam: number }
+      setStats(res.data);
+    } catch (err) {
+      console.error("Fetch exam stats failed", err);
+    }
+  };
+
   useEffect(() => {
     if (!classId) return;
     fetchExamSchedule();
+    fetchExamStats();
   }, [classId, weekBase, filter]);
 
   const onDeleteExam = async (exam: ExamSchedule) => {
@@ -112,6 +129,7 @@ export default function ExamPage() {
 
       // reload từ server (an toàn nhất)
       await fetchExamSchedule();
+      await fetchExamStats();
       alert("Xoá lịch thi thành công");
     } catch (err) {
       alert("Xoá lịch thi thất bại");
@@ -146,24 +164,18 @@ export default function ExamPage() {
       </div>
 
       {/* Statistic cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <StatCard
           title="Tổng bài thi tháng này"
-          value={5}
+          value={stats?.examInMonth ?? 0}
           icon={BookOpen}
           accentColor="#6BCDB1"
         />
         <StatCard
           title="Bài thi sắp diễn ra"
-          value={1}
+          value={stats?.futureExam ?? 0}
           icon={Clock}
           accentColor="#F8A8C4"
-        />
-        <StatCard
-          title="Bài cần chấm"
-          value={4}
-          icon={FileCheck}
-          accentColor="#F9D976"
         />
       </div>
 
@@ -196,10 +208,6 @@ export default function ExamPage() {
         </div>
 
         <div className="flex gap-2">
-          <Button icon={Upload} variant="outline" className="bg-white" onClick={() => setOpenImportExcel(true)}>
-            Đăng tải Excel
-          </Button>
-
           <Button
             icon={Plus}
             variant="primary"

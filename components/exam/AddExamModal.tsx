@@ -126,7 +126,6 @@ export default function AddExamModal({
               if (!value) return;
               setSubjectId(value);
             }}
-            allowCreate
           />
         </FormField>
 

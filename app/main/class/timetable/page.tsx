@@ -120,10 +120,6 @@ export default function TimetablePage() {
             Thiết lập
           </Button>
 
-          <Button icon={Upload} variant="outline" className="bg-white" onClick={() => {}}>
-            Đăng tải Excel
-          </Button>
-
           <Button
             icon={Plus}
             variant="primary"
